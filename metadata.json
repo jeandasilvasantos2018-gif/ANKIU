@@ -1,0 +1,6 @@
+{
+  "name": "Anki - Vocabulaire Français",
+  "description": "Application d'apprentissage du vocabulaire français avec répétition espacée SM-2, cartes mémoire interactives et prononciation audio.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
