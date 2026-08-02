@@ -30,6 +30,39 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', time: new Date().toISOString() });
 });
 
+// API Route: Text-To-Speech MP3 Audio Stream for Android WebView & Web Browsers
+app.get('/api/tts', async (req, res) => {
+  try {
+    const text = (req.query.text as string) || '';
+    const lang = (req.query.lang as string) || 'fr';
+    if (!text.trim()) {
+      return res.status(400).send('Text parameter is required.');
+    }
+
+    const cleanText = text.replace(/______/g, '').substring(0, 200);
+    const googleTtsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=${encodeURIComponent(lang)}&client=tw-ob`;
+
+    const response = await fetch(googleTtsUrl, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Linux; Android 11; Pixel 5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`TTS server response error: ${response.status}`);
+    }
+
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    const arrayBuffer = await response.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (err: any) {
+    console.error('Error serving TTS audio stream:', err);
+    res.status(500).send('Error generating TTS audio file.');
+  }
+});
+
 // API Route: Generate complete FlashCard using Gemini AI
 app.post('/api/gemini/generate-card', async (req, res) => {
   try {

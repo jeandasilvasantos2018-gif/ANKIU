@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FlashCard, ChallengeQuestion } from '../types';
+import { playAudio } from '../lib/audio';
 import {
   Zap,
   Sparkles,
@@ -52,17 +53,6 @@ export const ChallengeTab: React.FC<ChallengeTabProps> = ({
   );
 
   const targetCardsList = difficultCards.length >= 3 ? difficultCards : cards;
-
-  // Audio helper
-  const playAudio = (text: string, lang = 'fr') => {
-    if (!('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const cleanText = text.replace(/______/g, '');
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = lang === 'fr' ? 'fr-FR' : 'en-US';
-    utterance.rate = 0.9;
-    window.speechSynthesis.speak(utterance);
-  };
 
   // Generate fallback local challenge questions when AI API is unavailable
   const generateLocalQuestions = (targetCards: FlashCard[], count = 5): ChallengeQuestion[] => {
