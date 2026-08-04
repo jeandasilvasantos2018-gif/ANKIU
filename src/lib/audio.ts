@@ -1,15 +1,49 @@
 /**
- * Audio Player for Android WebView (Median) & Web Browsers (Vercel compatible)
- * Uses high-quality MP3 TTS stream (StreamElements / Amazon Polly) with SpeechSynthesis fallback.
+ * Multi-Tier Audio Player for Web, Vercel & Mobile (WebView)
+ * Solves Vercel CORS restrictions, hotlinking blocks, and browser autoplay policies.
  */
 
 let activeAudio: HTMLAudioElement | null = null;
+let voicesLoaded: SpeechSynthesisVoice[] = [];
+
+// Pre-load voices for SpeechSynthesis in browser environment
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  const loadVoices = () => {
+    try {
+      voicesLoaded = window.speechSynthesis.getVoices();
+    } catch (e) {
+      // ignore
+    }
+  };
+  loadVoices();
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+  }
+}
 
 /**
- * Maps ISO language code to natural Amazon Polly voice names
+ * Maps language code to standard 2-letter ISO code
+ */
+const getLangCode = (lang: string = 'fr'): string => {
+  const code = lang.toLowerCase().substring(0, 2);
+  const map: Record<string, string> = {
+    fr: 'fr',
+    en: 'en',
+    es: 'es',
+    de: 'de',
+    it: 'it',
+    pt: 'pt',
+    ja: 'ja',
+    zh: 'zh',
+  };
+  return map[code] || 'fr';
+};
+
+/**
+ * Maps ISO language code to Amazon Polly Voice Name for StreamElements fallback
  */
 const getPollyVoice = (lang: string = 'fr'): string => {
-  const code = lang.toLowerCase().substring(0, 2);
+  const code = getLangCode(lang);
   switch (code) {
     case 'fr':
       return 'Mathieu';
@@ -33,21 +67,25 @@ const getPollyVoice = (lang: string = 'fr'): string => {
 };
 
 /**
- * Fallback Web Speech Synthesis for offline or fallback environments
+ * Native Browser Web Speech Synthesis fallback for offline or restricted environments
  */
-const playSpeechSynthesis = (
+export const playSpeechSynthesis = (
   text: string,
-  language: string,
-  rate: number,
+  language: string = 'fr',
+  rate: number = 1.0,
   onEnd?: () => void
 ): boolean => {
-  if (!('speechSynthesis' in window)) {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
     if (onEnd) onEnd();
     return false;
   }
 
   try {
     window.speechSynthesis.cancel();
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = rate;
 
@@ -64,7 +102,7 @@ const playSpeechSynthesis = (
 
     utterance.lang = langCodeMap[language.substring(0, 2)] || 'fr-FR';
 
-    const voices = window.speechSynthesis.getVoices();
+    const voices = voicesLoaded.length > 0 ? voicesLoaded : window.speechSynthesis.getVoices();
     const matchVoice = voices.find(
       (v) => v.lang.startsWith(utterance.lang) || v.lang.toLowerCase().includes(language.toLowerCase())
     );
@@ -82,14 +120,14 @@ const playSpeechSynthesis = (
     window.speechSynthesis.speak(utterance);
     return true;
   } catch (e) {
-    console.warn('SpeechSynthesis fallback error:', e);
+    console.warn('SpeechSynthesis error:', e);
     if (onEnd) onEnd();
     return false;
   }
 };
 
 /**
- * Play text-to-speech audio using real MP3 endpoint or Web Speech API fallback
+ * Play text-to-speech audio with multi-tier failover (Google TTS -> StreamElements -> Browser Web Speech)
  */
 export const playAudio = (
   text: string,
@@ -119,39 +157,61 @@ export const playAudio = (
     }
   };
 
-  try {
-    const voice = getPollyVoice(language);
-    // Real MP3 audio endpoint (Amazon Polly via StreamElements API)
-    const mp3Url = `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(
-      voice
-    )}&text=${encodeURIComponent(cleanText.substring(0, 250))}`;
+  const langCode = getLangCode(language);
+  const encodedText = encodeURIComponent(cleanText.substring(0, 200));
 
-    const audio = new Audio(mp3Url);
-    activeAudio = audio;
-    audio.playbackRate = rate;
+  // Multiple audio endpoint streams for maximum Vercel & Mobile compatibility
+  const audioUrls = [
+    // Tier 1: Google Translate TTS API (gtx client - works everywhere without API keys)
+    `https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&q=${encodedText}&tl=${langCode}`,
+    // Tier 2: Google Translate TTS API (tw-ob client fallback)
+    `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&q=${encodedText}&tl=${langCode}`,
+    // Tier 3: StreamElements Amazon Polly API
+    `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(getPollyVoice(language))}&text=${encodedText}`,
+  ];
 
-    audio.onended = finishOnce;
+  let currentUrlIndex = 0;
 
-    audio.onerror = (err) => {
-      console.warn('MP3 Audio stream error, trying SpeechSynthesis fallback...', err);
-      activeAudio = null;
+  const tryNextSource = () => {
+    if (currentUrlIndex >= audioUrls.length) {
+      // Fallback to native Web Speech API if all remote streams fail
+      console.warn('All remote audio streams failed on current origin/host, using Web Speech API fallback...');
       playSpeechSynthesis(cleanText, language, rate, finishOnce);
-    };
-
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch((err) => {
-        console.warn('HTML5 Audio play rejected, falling back to Web Speech Synthesis:', err);
-        activeAudio = null;
-        playSpeechSynthesis(cleanText, language, rate, finishOnce);
-      });
+      return;
     }
 
-    return true;
-  } catch (err) {
-    console.warn('HTMLAudioElement initialization error, falling back to Web Speech Synthesis:', err);
-    return playSpeechSynthesis(cleanText, language, rate, finishOnce);
-  }
+    const url = audioUrls[currentUrlIndex];
+    currentUrlIndex++;
+
+    try {
+      const audio = new Audio();
+      activeAudio = audio;
+      audio.playbackRate = rate;
+
+      audio.onended = finishOnce;
+
+      audio.onerror = () => {
+        console.warn(`Audio stream failed (${url}), trying next audio source...`);
+        tryNextSource();
+      };
+
+      audio.src = url;
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((err) => {
+          console.warn(`Audio play promise rejected for ${url}:`, err);
+          tryNextSource();
+        });
+      }
+    } catch (err) {
+      console.warn('HTMLAudioElement error:', err);
+      tryNextSource();
+    }
+  };
+
+  tryNextSource();
+  return true;
 };
 
 /**
