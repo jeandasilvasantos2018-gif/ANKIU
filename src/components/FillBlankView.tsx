@@ -111,7 +111,7 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
     setIsFavorited(false);
 
     // Create candidate pool: correct tokens + 3 random distractor words
-    const distractors = ['hold', 'leave', 'make', 'never', 'always', 'cold', 'snow', 'fast', 'here', 'look']
+    const distractors = ['beaucoup', 'toujours', 'maintenant', 'jamais', 'avec', 'sans', 'pour', 'ici', 'très']
       .filter((w) => !tokens.map((t) => t.toLowerCase()).includes(w.toLowerCase()))
       .sort(() => 0.5 - Math.random())
       .slice(0, 3);
@@ -131,7 +131,7 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
     }
   }, [currentIndex, currentExercise, initLiveQuestion]);
 
-  // Total accuracy rate calculation (matching 实时正确率)
+  // Total accuracy rate calculation
   const totalAttempts = correctCount + wrongCount;
   const accuracyRate = totalAttempts > 0 ? Math.round((correctCount / totalAttempts) * 100) : 84;
 
@@ -139,16 +139,13 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
   const handleSelectWordTile = (word: string, indexInCandidates: number) => {
     if (liveStatus === 'correct') return;
 
-    // Add to selected words
     const newSelected = [...selectedWords, word];
     setSelectedWords(newSelected);
 
-    // Remove from candidate pool
     const newCandidates = [...candidateWords];
     newCandidates.splice(indexInCandidates, 1);
     setCandidateWords(newCandidates);
 
-    // Auto-check if all slots filled
     const targetTokens = getSentenceTokens(currentExercise);
     if (newSelected.length === targetTokens.length) {
       checkLiveAnswer(newSelected, targetTokens);
@@ -166,10 +163,19 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
     if (liveStatus === 'incorrect') setLiveStatus('unanswered');
   };
 
+  const normalizeStr = (s: string) => {
+    return s
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/['".,!?:;]/g, '');
+  };
+
   // Check live mode answer
   const checkLiveAnswer = (userWords: string[], targetTokens: string[]) => {
-    const userStr = userWords.join(' ').toLowerCase().replace(/[.,!?:;"]/g, '');
-    const targetStr = targetTokens.join(' ').toLowerCase().replace(/[.,!?:;"]/g, '');
+    const userStr = userWords.map(normalizeStr).join(' ');
+    const targetStr = targetTokens.map(normalizeStr).join(' ');
 
     if (userStr === targetStr) {
       setLiveStatus('correct');
@@ -177,6 +183,24 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
       playAudio(currentExercise.fullSentence, 'fr');
     } else {
       setLiveStatus('incorrect');
+      setWrongCount((prev) => prev + 1);
+    }
+  };
+
+  // Check classic mode answer
+  const handleClassicCheckAnswer = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!classicUserInput.trim()) return;
+
+    const userNorm = normalizeStr(classicUserInput);
+    const targetNorm = normalizeStr(currentExercise.targetWord);
+
+    if (userNorm === targetNorm) {
+      setClassicStatus('correct');
+      setCorrectCount((prev) => prev + 1);
+      playAudio(currentExercise.fullSentence, 'fr');
+    } else {
+      setClassicStatus('incorrect');
       setWrongCount((prev) => prev + 1);
     }
   };
@@ -225,12 +249,8 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
   // Global Keyboard Shortcuts Listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't intercept if user is typing in standard text field
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        if (e.key === 'Enter') {
-          // Allow enter inside text input
-          return;
-        }
+        if (e.key === 'Enter') return;
       }
 
       if (e.shiftKey && e.key === 'ArrowLeft') {
@@ -244,10 +264,18 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
         handleSkipWord();
       } else if (e.key === 'Enter') {
         e.preventDefault();
-        if (liveStatus === 'correct') {
-          handleNext();
+        if (viewMode === 'live') {
+          if (liveStatus === 'correct') {
+            handleNext();
+          } else {
+            checkLiveAnswer(selectedWords, getSentenceTokens(currentExercise));
+          }
         } else {
-          checkLiveAnswer(selectedWords, getSentenceTokens(currentExercise));
+          if (classicStatus === 'correct') {
+            handleNext();
+          } else {
+            handleClassicCheckAnswer();
+          }
         }
       } else if (e.key === 'Control' || e.key === 'c') {
         e.preventDefault();
@@ -257,9 +285,8 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedWords, liveStatus, currentExercise, currentIndex, exercises, getSentenceTokens]);
+  }, [selectedWords, liveStatus, classicStatus, viewMode, currentExercise, currentIndex, exercises, getSentenceTokens]);
 
-  // Render tokens for Live Builder
   const targetTokens = getSentenceTokens(currentExercise);
 
   return (
@@ -273,43 +300,42 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
             </div>
             <div>
               <h1 className="text-sm font-black text-zinc-900 dark:text-zinc-50 tracking-tight flex items-center gap-1.5">
-                <span>Kiwi Prática Oral 900</span>
+                <span>Kiwi Français 900</span>
                 <span className="px-1.5 py-0.5 rounded-md bg-red-100 dark:bg-red-950/80 text-red-600 dark:text-red-400 text-[10px] font-extrabold uppercase">
-                  AO VIVO
+                  EN DIRECT
                 </span>
               </h1>
               <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                Construção de Frases & Prática de Pronúncia em Tempo Real
+                Pratique de la Prononciation & Oral en Français
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* View Mode Toggle Button */}
             <div className="flex items-center p-1 bg-zinc-100 dark:bg-zinc-800 rounded-xl border border-zinc-200/60 dark:border-zinc-700/60">
               <button
                 type="button"
                 onClick={() => setViewMode('live')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
                   viewMode === 'live'
                     ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs'
                     : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
                 }`}
               >
                 <Tv className="w-3.5 h-3.5" />
-                <span>Modo Live</span>
+                <span>Mode Direct</span>
               </button>
               <button
                 type="button"
                 onClick={() => setViewMode('classic')}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
                   viewMode === 'classic'
                     ? 'bg-white dark:bg-zinc-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
                     : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Lacuna</span>
+                <span>Lacune</span>
               </button>
             </div>
           </div>
@@ -322,7 +348,7 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
             onChange={(e) => setSelectedDeckId(e.target.value)}
             className="text-xs bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-3 py-1.5 text-zinc-700 dark:text-zinc-300 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs font-medium"
           >
-            <option value="all">🇫🇷 Frases Frequentes (Todas {exercises.length})</option>
+            <option value="all">🇫🇷 Toutes les phrases ({exercises.length})</option>
             {decks.map((deck) => (
               <option key={deck.id} value={deck.id}>
                 {deck.flag} {deck.name}
@@ -333,24 +359,24 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
           <button
             type="button"
             onClick={() => setEnableLiveStreamOverlay(!enableLiveStreamOverlay)}
-            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${
+            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 cursor-pointer ${
               enableLiveStreamOverlay
                 ? 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border-red-200 dark:border-red-900/60'
                 : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border-zinc-200 dark:border-zinc-700'
             }`}
-            title="Ativar/desativar efeito visual de estúdio de transmissão"
+            title="Activer/désactiver l'ambiance du chat en direct"
           >
             <Radio className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Efeito Live Chat</span>
+            <span className="hidden sm:inline">Effet Chat Direct</span>
           </button>
         </div>
 
         {/* ========================================================================= */}
-        {/* MODE 1: LIVE SENTENCE BUILDER (DIRECT MATCH TO SCREENSHOT)               */}
+        {/* MODE 1: LIVE SENTENCE BUILDER                                             */}
         {/* ========================================================================= */}
         {viewMode === 'live' && (
           <div className="relative bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-3xl p-5 shadow-xl shadow-zinc-200/40 dark:shadow-none overflow-hidden flex flex-col gap-5 transition-all">
-            {/* Top Glowing Green Progress Bar (Matching screenshot) */}
+            {/* Top Glowing Green Progress Bar */}
             <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-2 rounded-full overflow-hidden relative">
               <div
                 className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-300 shadow-sm shadow-emerald-500/50"
@@ -363,38 +389,63 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
             {/* Top Bar Stats & Navigation Counter */}
             <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
               <div className="font-bold text-zinc-800 dark:text-zinc-200">
-                常实用口语900句 (Frases Úteis)
+                900 Phrases Utiles en Français
               </div>
               <div className="font-semibold tracking-wide bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full border border-zinc-200/60 dark:border-zinc-700/60 text-zinc-700 dark:text-zinc-300">
-                第 <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{currentIndex + 1}</span> 题 / 共 {exercises.length} 题
+                Question <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{currentIndex + 1}</span> / {exercises.length}
               </div>
             </div>
 
-            {/* Previous Question Banner (Matching screenshot: "上一题 It's freezing cold! ✓ 冷死了!") */}
+            {/* Previous Question Banner */}
             {prevQuestion && (
               <div className="flex items-center justify-center gap-2 text-xs py-1.5 px-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-zinc-700/60 text-zinc-600 dark:text-zinc-300 animate-fadeIn">
-                <span className="text-zinc-400 font-medium">上一题 (Anterior)</span>
+                <span className="text-zinc-400 font-medium">Précédente:</span>
                 <span className="font-bold text-zinc-900 dark:text-zinc-100">{prevQuestion.fullSentence}</span>
                 {prevQuestion.isCorrect ? (
                   <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">✓</span>
                 ) : (
                   <span className="text-rose-500 font-extrabold">✕</span>
                 )}
-                <span className="text-zinc-500">{prevQuestion.translation}</span>
+                <span className="text-zinc-500">"{prevQuestion.translation}"</span>
               </div>
             )}
 
-            {/* Main Prompt Sentence (Target translation in native language) */}
+            {/* Main Prompt Sentence */}
             <div className="text-center py-2">
               <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight">
-                {currentExercise.translation}
+                "{currentExercise.translation}"
               </h2>
               <p className="text-xs text-zinc-400 mt-1">
-                Selecione ou digite as palavras em ordem para formar a frase
+                Sélectionnez les mots dans le bon ordre pour former la phrase en français
               </p>
             </div>
 
-            {/* Interactive Word Slots Container (Matching screenshot word boxes & green underline highlight) */}
+            {/* Hint view in Live Mode */}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowHint(!showHint)}
+                className="px-3 py-1.5 rounded-xl border border-amber-200/80 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-semibold text-xs flex items-center gap-1.5 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+              >
+                <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+                <span>{showHint ? 'Masquer la Dica' : 'Voir la Dica (Indication)'}</span>
+              </button>
+            </div>
+
+            {showHint && (
+              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/80 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5 animate-fadeIn">
+                <Lightbulb className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="flex flex-col gap-1">
+                  <span className="font-bold">Indication / Dica:</span>
+                  <span>
+                    {currentExercise.hint ||
+                      `La phrase commence par "${currentExercise.fullSentence.split(' ')[0]}" et contient ${targetTokens.length} mots.`}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Interactive Word Slots Container */}
             <div className="flex flex-wrap items-center justify-center gap-2.5 min-h-[72px] p-4 rounded-2xl bg-zinc-50/80 dark:bg-zinc-950/60 border border-zinc-200/80 dark:border-zinc-800/80">
               {targetTokens.map((_, slotIdx) => {
                 const filledWord = selectedWords[slotIdx];
@@ -415,7 +466,6 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
                     }`}
                   >
                     {filledWord || '____'}
-                    {/* Active Slot Green Line Indicator */}
                     {isActive && (
                       <span className="absolute -bottom-1.5 left-2 right-2 h-1 bg-emerald-500 rounded-full animate-pulse" />
                     )}
@@ -427,14 +477,14 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
             {/* Candidate Word Tiles Bank */}
             <div className="flex flex-col gap-2 pt-1">
               <div className="flex items-center justify-between text-xs text-zinc-400 px-1 font-semibold">
-                <span>Clique nas palavras para preencher:</span>
+                <span>Cliquez sur les mots pour remplir la phrase:</span>
                 {selectedWords.length > 0 && (
                   <button
                     type="button"
                     onClick={() => initLiveQuestion(currentExercise)}
                     className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                   >
-                    Limpar seleções
+                    Réinitialiser les mots
                   </button>
                 )}
               </div>
@@ -459,7 +509,7 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-black text-sm">
                     <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                    <span>Excelente! Resposta Correta! 🎉</span>
+                    <span>Bravo ! Réponse Correcte ! 🎉</span>
                   </div>
                   <button
                     type="button"
@@ -467,7 +517,7 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
                     className="p-1.5 rounded-xl bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-300 font-bold text-xs flex items-center gap-1 cursor-pointer"
                   >
                     <Volume2 className="w-4 h-4" />
-                    <span>Ouvir Pronúncia</span>
+                    <span>Écouter la Prononciation</span>
                   </button>
                 </div>
 
@@ -480,7 +530,7 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
                   onClick={handleNext}
                   className="w-full mt-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
                 >
-                  <span>Próxima Questão (Pressione Enter)</span>
+                  <span>Question Suivante (Appuyer sur Entrée)</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -490,23 +540,23 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
               <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 flex items-center justify-between text-xs font-semibold animate-shake">
                 <div className="flex items-center gap-2">
                   <XCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                  <span>Ordem incorreta. Tente novamente ou use o atalho Espaço para pular.</span>
+                  <span>Ordre incorrect. Réessayez ou appuyez sur Espace pour sauter.</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => initLiveQuestion(currentExercise)}
                   className="px-2.5 py-1 rounded-xl bg-rose-200/60 dark:bg-rose-900/60 text-rose-900 dark:text-rose-100 font-bold cursor-pointer"
                 >
-                  Reiniciar
+                  Recommencer
                 </button>
               </div>
             )}
 
-            {/* REAL-TIME STATS BAR (Matching Screenshot 1:1) */}
+            {/* REAL-TIME STATS BAR */}
             <div className="grid grid-cols-3 gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800">
               <div className="p-2.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/60 dark:border-emerald-900/60 text-center flex flex-col items-center justify-center">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                  已答对 (Corretas)
+                  Réponses Correctes
                 </div>
                 <div className="text-lg font-black text-emerald-700 dark:text-emerald-300">
                   {correctCount}
@@ -515,7 +565,7 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
 
               <div className="p-2.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200/60 dark:border-rose-900/60 text-center flex flex-col items-center justify-center">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                  已答错 (Incorretas)
+                  Réponses Incorrectes
                 </div>
                 <div className="text-lg font-black text-rose-700 dark:text-rose-300">
                   {wrongCount}
@@ -524,7 +574,7 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
 
               <div className="p-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-900/60 text-center flex flex-col items-center justify-center">
                 <div className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                  实时正确率 (Precisão)
+                  Taux de Précision
                 </div>
                 <div className="text-lg font-black text-blue-700 dark:text-blue-300">
                   {accuracyRate}%
@@ -532,61 +582,56 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
               </div>
             </div>
 
-            {/* KEYBOARD SHORTCUTS DOCK (Matching Screenshot 1:1) */}
+            {/* KEYBOARD SHORTCUTS DOCK */}
             <div className="flex items-center justify-between gap-1.5 overflow-x-auto pt-2 pb-1 text-[11px] font-bold text-zinc-600 dark:text-zinc-300 border-t border-zinc-100 dark:border-zinc-800 scrollbar-none">
-              {/* Previous */}
               <button
                 type="button"
                 onClick={handlePrev}
                 className="px-2.5 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all flex items-center gap-1 shrink-0 cursor-pointer"
-                title="Pressione Shift + Seta Esquerda"
+                title="Shift + Flèche Gauche"
               >
                 <span className="px-1 py-0.5 rounded bg-white dark:bg-zinc-900 text-[9px] font-mono border border-zinc-300 dark:border-zinc-700">
                   Shift ←
                 </span>
-                <span>上一题 (Anterior)</span>
+                <span>Précédente</span>
               </button>
 
-              {/* Skip word */}
               <button
                 type="button"
                 onClick={handleSkipWord}
                 className="px-2.5 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all flex items-center gap-1 shrink-0 cursor-pointer"
-                title="Pressione Espaço para preencher próxima palavra"
+                title="Espace pour sauter un mot"
               >
                 <span className="px-1 py-0.5 rounded bg-white dark:bg-zinc-900 text-[9px] font-mono border border-zinc-300 dark:border-zinc-700">
                   Space
                 </span>
-                <span>跳词 (Pular)</span>
+                <span>Sauter Mot</span>
               </button>
 
-              {/* Submit */}
               <button
                 type="button"
                 onClick={() => checkLiveAnswer(selectedWords, targetTokens)}
                 className="px-2.5 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-200 transition-all flex items-center gap-1 shrink-0 cursor-pointer"
-                title="Pressione Enter para verificar ou avançar"
+                title="Entrée pour valider"
               >
                 <span className="px-1 py-0.5 rounded bg-emerald-600 text-white text-[9px] font-mono">
                   Enter
                 </span>
-                <span>提交 (Enviar)</span>
+                <span>Valider</span>
               </button>
 
-              {/* Read Aloud */}
               <button
                 type="button"
                 onClick={() => playAudio(currentExercise.fullSentence, 'fr')}
                 className="px-2.5 py-1.5 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-200 hover:bg-blue-200 transition-all flex items-center gap-1 shrink-0 cursor-pointer"
-                title="Pressione Ctrl para ouvir a pronúncia"
+                title="Ctrl pour écouter"
               >
                 <span className="px-1 py-0.5 rounded bg-blue-600 text-white text-[9px] font-mono">
                   Ctrl
                 </span>
-                <span>朗读 (Ouvir)</span>
+                <span>Écouter</span>
               </button>
 
-              {/* Bookmark */}
               <button
                 type="button"
                 onClick={() => setIsFavorited(!isFavorited)}
@@ -597,27 +642,25 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
                 }`}
               >
                 <Star className={`w-3.5 h-3.5 ${isFavorited ? 'fill-amber-500 text-amber-500' : ''}`} />
-                <span>收藏 (Favoritar)</span>
+                <span>Favoris</span>
               </button>
 
-              {/* Next */}
               <button
                 type="button"
                 onClick={handleNext}
                 className="px-2.5 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all flex items-center gap-1 shrink-0 cursor-pointer"
-                title="Pressione Shift + Seta Direita"
+                title="Shift + Flèche Droite"
               >
-                <span>下一题 (Próxima)</span>
+                <span>Suivante</span>
                 <span className="px-1 py-0.5 rounded bg-white dark:bg-zinc-900 text-[9px] font-mono border border-zinc-300 dark:border-zinc-700">
                   Shift →
                 </span>
               </button>
             </div>
 
-            {/* LIVE STREAM OVERLAY FEED (Simulating the exact live stream comments & host floating header from screenshot) */}
+            {/* LIVE STREAM OVERLAY FEED */}
             {enableLiveStreamOverlay && (
               <div className="mt-2 pt-3 border-t border-dashed border-zinc-200 dark:border-zinc-800 bg-gradient-to-b from-zinc-50/50 to-zinc-100/80 dark:from-zinc-950/40 dark:to-zinc-900/80 rounded-2xl p-3 flex flex-col gap-2 relative">
-                {/* Host Info Header (Matching "Kiwi 学英语 1.088 likes") */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="relative w-8 h-8 rounded-full bg-gradient-to-tr from-amber-400 to-rose-400 p-0.5">
@@ -629,59 +672,53 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
                     <div className="flex flex-col">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-bold text-zinc-900 dark:text-zinc-100">
-                          Kiwi 学英语 (Live Host)
+                          Kiwi Français (Direct)
                         </span>
                         <span className="px-1.5 py-0.2 rounded-md bg-rose-500 text-white text-[9px] font-black">
-                          Follow
+                          Suivre
                         </span>
                       </div>
-                      <span className="text-[10px] text-zinc-400">1,088 curtidas • 70 assistindo agora</span>
+                      <span className="text-[10px] text-zinc-400">1,088 j'aime • 70 personnes en direct</span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2 py-1 rounded-xl border border-amber-200/60 dark:border-amber-900/60">
                     <Flame className="w-3 h-3 fill-amber-500" />
-                    <span>Transmissão em Alta</span>
+                    <span>Direct Populaires</span>
                   </div>
                 </div>
 
-                {/* Subtitle / Live Intro Banner (Matching "Live Intro - 零基础到雅思托福内容全覆盖...") */}
                 <div className="p-2 rounded-xl bg-zinc-900/80 text-white text-[11px] font-semibold flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <span className="px-1.5 py-0.5 rounded bg-rose-600 text-[9px] font-black uppercase">
-                      Live Intro
+                      Direct
                     </span>
                     <span className="truncate max-w-[280px] sm:max-w-none">
-                      Conteúdo de oralidade do básico ao avançado! Funciona em Celular, Tablet e PC!
+                      Pratiquez le français oral du niveau débutant au niveau avancé !
                     </span>
                   </div>
                 </div>
 
-                {/* Live Comments Feed (Matching screenshot chat messages) */}
                 <div className="flex flex-col gap-1 max-h-24 overflow-y-auto scrollbar-none text-[11px]">
                   <div className="flex items-center gap-1.5">
                     <span className="px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 font-bold text-[9px]">
-                      hah6
+                      Julien_FR
                     </span>
-                    <span className="text-zinc-700 dark:text-zinc-300 font-semibold">hold</span>
+                    <span className="text-zinc-700 dark:text-zinc-300 font-semibold">Très bonne phrase !</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-300 font-bold text-[9px]">
-                      ⭐⭐
+                      Sophie
                     </span>
-                    <span className="text-zinc-700 dark:text-zinc-300 font-semibold">leave?</span>
+                    <span className="text-zinc-700 dark:text-zinc-300 font-semibold">J'adore ce cours en direct !</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-zinc-400">
-                    <span className="font-bold text-zinc-600 dark:text-zinc-300">登月第一人</span>
-                    <span>liked the host ❤️</span>
+                    <span className="font-bold text-zinc-600 dark:text-zinc-300">Antoine_Paris</span>
+                    <span>a aimé le direct ❤️</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-zinc-400">
-                    <span className="font-bold text-zinc-600 dark:text-zinc-300">阿深</span>
-                    <span>followed the host 🔔</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-zinc-400">
-                    <span className="font-bold text-zinc-600 dark:text-zinc-300">丞哥保佑</span>
-                    <span>entered the Live room 👋</span>
+                    <span className="font-bold text-zinc-600 dark:text-zinc-300">Claire_M</span>
+                    <span>s'est abonnée 🔔</span>
                   </div>
                 </div>
               </div>
@@ -693,81 +730,150 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
         {/* MODE 2: CLASSIC FILL-IN-THE-BLANK MODE                                    */}
         {/* ========================================================================= */}
         {viewMode === 'classic' && (
-          <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200/80 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-none transition-all duration-300">
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200/80 dark:border-zinc-800 shadow-xl shadow-zinc-200/50 dark:shadow-none transition-all duration-300 flex flex-col gap-5">
             {/* Audio & Hint Bar */}
-            <div className="flex items-center justify-between mb-4 border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
+            <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
               <button
                 type="button"
                 onClick={() => playAudio(currentExercise.fullSentence, 'fr')}
                 className="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 px-3 py-1.5 rounded-full transition-colors cursor-pointer"
               >
                 <Volume2 className="w-4 h-4" />
-                <span>Ouvir Pronúncia</span>
+                <span>Écouter la Prononciation</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setShowHint(!showHint)}
-                className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors cursor-pointer"
+                className="px-3 py-1.5 rounded-xl border border-amber-200/80 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 font-semibold text-xs flex items-center gap-1.5 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
               >
                 <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-                <span>{showHint ? 'Ocultar Dica' : 'Ver Dica'}</span>
+                <span>{showHint ? 'Masquer la Dica' : 'Voir la Dica (Indication)'}</span>
               </button>
             </div>
 
-            {/* Sentence Display */}
-            <div className="text-2xl sm:text-3xl font-semibold tracking-wide text-zinc-900 dark:text-zinc-100 text-center my-4 leading-relaxed">
+            {/* Hint Box in Classic Mode */}
+            {showHint && (
+              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/80 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2.5 animate-fadeIn">
+                <Lightbulb className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                <div className="flex flex-col gap-1">
+                  <span className="font-bold">Indication / Dica:</span>
+                  <span>
+                    {currentExercise.hint ||
+                      `Le mot manquant commence par "${currentExercise.targetWord.charAt(0)}" et contient ${currentExercise.targetWord.length} lettres.`}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Sentence Display - FIXED: Word is HIDDEN initially! */}
+            <div className="text-2xl sm:text-3xl font-semibold tracking-wide text-zinc-900 dark:text-zinc-100 text-center my-2 leading-relaxed">
               {currentExercise.sentenceWithBlank.split('______')[0]}
-              <span className="inline-block px-3 py-1 mx-1 rounded-xl border-b-4 border-blue-500 bg-blue-50 dark:bg-zinc-800 text-blue-600 dark:text-blue-400 font-bold">
-                {classicUserInput || currentExercise.targetWord || '______'}
+              <span className="inline-block px-3.5 py-1 mx-1.5 rounded-xl border-b-4 border-blue-500 bg-blue-50 dark:bg-zinc-800 text-blue-600 dark:text-blue-400 font-extrabold min-w-[90px] text-center shadow-xs">
+                {classicUserInput ? (
+                  classicUserInput
+                ) : (classicStatus === 'correct' || classicStatus === 'given_up') ? (
+                  currentExercise.targetWord
+                ) : (
+                  '______'
+                )}
               </span>
               {currentExercise.sentenceWithBlank.split('______')[1]}
             </div>
 
-            <div className="text-center text-xs text-zinc-500 dark:text-zinc-400 mb-6 italic">
+            <div className="text-center text-xs text-zinc-500 dark:text-zinc-400 italic">
               "{currentExercise.translation}"
             </div>
 
             {/* Typing input form */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (classicUserInput.trim().toLowerCase() === currentExercise.targetWord.toLowerCase()) {
-                  setClassicStatus('correct');
-                  setCorrectCount((prev) => prev + 1);
-                  playAudio(currentExercise.fullSentence, 'fr');
-                } else {
-                  setClassicStatus('incorrect');
-                  setWrongCount((prev) => prev + 1);
-                }
-              }}
-              className="space-y-4"
-            >
+            <form onSubmit={handleClassicCheckAnswer} className="space-y-4">
               <input
                 ref={classicInputRef}
                 type="text"
                 value={classicUserInput}
-                onChange={(e) => setClassicUserInput(e.target.value)}
-                placeholder="Digite a palavra em falta..."
-                className="w-full text-center text-lg font-medium py-3.5 px-4 rounded-2xl border-2 border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:border-blue-500"
+                onChange={(e) => {
+                  setClassicUserInput(e.target.value);
+                  if (classicStatus === 'incorrect') setClassicStatus('unanswered');
+                }}
+                placeholder="Tapez le mot manquant en français..."
+                className={`w-full text-center text-lg font-medium py-3.5 px-4 rounded-2xl border-2 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:outline-none transition-all ${
+                  classicStatus === 'incorrect'
+                    ? 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/50'
+                    : 'border-zinc-200 dark:border-zinc-700 focus:border-blue-500'
+                }`}
+                autoCapitalize="none"
+                autoComplete="off"
+                spellCheck="false"
               />
 
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="flex-1 py-3 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs cursor-pointer"
+                  className="flex-1 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 active:scale-98 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer"
                 >
-                  Verificar Resposta
+                  Verificar Resposta (Valider)
                 </button>
                 <button
                   type="button"
                   onClick={handleNext}
-                  className="px-4 py-3 rounded-2xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-bold text-xs cursor-pointer"
+                  className="px-5 py-3.5 rounded-2xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 font-bold text-xs transition-all cursor-pointer"
                 >
-                  Pular
+                  Pular (Sauter)
                 </button>
               </div>
             </form>
+
+            {/* Feedback Banners in Classic Mode */}
+            {classicStatus === 'correct' && (
+              <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 flex flex-col gap-2 animate-scaleUp">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 font-black text-sm">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                    <span>Bravo ! Réponse Correcte ! 🎉</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => playAudio(currentExercise.fullSentence, 'fr')}
+                    className="p-1.5 rounded-xl bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-300 font-bold text-xs flex items-center gap-1 cursor-pointer"
+                  >
+                    <Volume2 className="w-4 h-4" />
+                    <span>Écouter</span>
+                  </button>
+                </div>
+
+                <div className="text-lg font-bold text-emerald-900 dark:text-emerald-100">
+                  "{currentExercise.fullSentence}"
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="w-full mt-1 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
+                >
+                  <span>Prochaine Phrase (Suivante)</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {classicStatus === 'incorrect' && (
+              <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 flex items-center justify-between text-xs font-semibold animate-shake">
+                <div className="flex items-center gap-2">
+                  <XCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                  <span>Réponse incorrecte. La bonne réponse est : <strong className="underline">{currentExercise.targetWord}</strong></span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClassicUserInput(currentExercise.targetWord);
+                    setClassicStatus('given_up');
+                  }}
+                  className="px-2.5 py-1 rounded-xl bg-rose-200/60 dark:bg-rose-900/60 text-rose-900 dark:text-rose-100 font-bold cursor-pointer shrink-0"
+                >
+                  Remplir
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
