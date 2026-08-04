@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FlashCard } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, Sparkles, Volume2, Star, Plus } from 'lucide-react';
-import { playAudio } from '../lib/audio';
+import { playAudio, useVoicesReady } from '../lib/audio';
 
 interface ExplorarModeProps {
   card: FlashCard;
@@ -21,6 +21,7 @@ export const ExplorarMode: React.FC<ExplorarModeProps> = ({
 }) => {
   const [audioSpeed, setAudioSpeed] = useState<number>(1.0);
   const [filterType, setFilterType] = useState<'all' | 'family' | 'expressions' | 'synonyms'>('all');
+  const voicesReady = useVoicesReady();
 
   // Collect all semantic connections
   const connections: { word: string; category: string; color: string }[] = [];
@@ -117,9 +118,10 @@ export const ExplorarMode: React.FC<ExplorarModeProps> = ({
                 {card.word}
               </h2>
               <button
+                disabled={!voicesReady}
                 onClick={handlePlayAudio}
-                className="p-2 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:scale-110 active:scale-95 transition-all"
-                title="Pronunciar"
+                className={`p-2 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 hover:scale-110 active:scale-95 transition-all ${!voicesReady ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title={voicesReady ? "Pronunciar" : "Carregando vozes..."}
               >
                 <Volume2 className="w-5 h-5" />
               </button>
@@ -153,12 +155,13 @@ export const ExplorarMode: React.FC<ExplorarModeProps> = ({
                   >
                     <button
                       type="button"
+                      disabled={!voicesReady}
                       onClick={(e) => {
                         e.stopPropagation();
                         playAudio(conn.word, card.language || 'fr');
                       }}
-                      className="p-1 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-                      title={`Ouvir "${conn.word}"`}
+                      className={`p-1 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 transition-colors ${!voicesReady ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={voicesReady ? `Ouvir "${conn.word}"` : "Carregando vozes..."}
                     >
                       <Volume2 className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 shrink-0" />
                     </button>

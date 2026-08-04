@@ -2,25 +2,97 @@
  * Multi-Tier Audio Player for Web, Vercel & Mobile (Median / GoNative WebView)
  * Solves Vercel CORS restrictions, hotlinking blocks, Median native WebView origin blocks, and browser autoplay policies.
  */
+import { useState, useEffect } from 'react';
 
-let activeAudio: HTMLAudioElement | null = null;
+let voicesReady = false;
 let voicesLoaded: SpeechSynthesisVoice[] = [];
+let activeAudio: HTMLAudioElement | null = null;
 let audioTimeoutTimer: ReturnType<typeof setTimeout> | null = null;
 
-// Pre-load voices for SpeechSynthesis in browser environment
-if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  const loadVoices = () => {
-    try {
-      voicesLoaded = window.speechSynthesis.getVoices();
-    } catch (e) {
-      // ignore
-    }
-  };
-  loadVoices();
-  if (window.speechSynthesis.onvoiceschanged !== undefined) {
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+const listeners: Set<(ready: boolean) => void> = new Set();
+
+const notifyListeners = () => {
+  listeners.forEach((fn) => fn(voicesReady));
+};
+
+/**
+ * Checks if SpeechSynthesis voices are loaded or available immediately
+ */
+export const checkVoicesReady = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  if (!('speechSynthesis' in window)) {
+    voicesReady = true;
+    return true; // Web Speech API not present; treat as ready so fallback audio works
   }
+
+  if (voicesReady) return true;
+
+  try {
+    const voices = window.speechSynthesis.getVoices();
+    if (voices && voices.length > 0) {
+      voicesLoaded = voices;
+      voicesReady = true;
+      notifyListeners();
+      return true;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  return false;
+};
+
+// Initialize voice listener for Web Speech API
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  const initVoices = () => {
+    checkVoicesReady();
+  };
+
+  initVoices();
+
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = initVoices;
+  }
+  window.speechSynthesis.addEventListener('voiceschanged', initVoices);
+
+  // Periodic checks for WebViews (Android/iOS Median) that delay loading voices without triggering onvoiceschanged
+  setTimeout(initVoices, 50);
+  setTimeout(initVoices, 250);
+  setTimeout(initVoices, 1000);
 }
+
+export const isVoicesReady = (): boolean => {
+  return checkVoicesReady();
+};
+
+export const subscribeVoicesReady = (callback: (ready: boolean) => void) => {
+  listeners.add(callback);
+  callback(checkVoicesReady());
+  return () => {
+    listeners.delete(callback);
+  };
+};
+
+/**
+ * React Hook to track if audio voices are loaded and ready in WebView / Browser
+ */
+export const useVoicesReady = (): boolean => {
+  const [ready, setReady] = useState(() => checkVoicesReady());
+
+  useEffect(() => {
+    if (ready) return;
+
+    const unsubscribe = subscribeVoicesReady((isReady) => {
+      if (isReady) {
+        setReady(true);
+      }
+    });
+
+    return unsubscribe;
+  }, [ready]);
+
+  return ready;
+};
 
 /**
  * Maps language code to standard 2-letter ISO code
@@ -69,6 +141,7 @@ const getPollyVoice = (lang: string = 'fr'): string => {
 
 /**
  * Native Browser Web Speech Synthesis fallback for offline or restricted environments (Median / Android / iOS WebViews)
+ * MUST be executed synchronously within user gesture event loops in WebViews!
  */
 export const playSpeechSynthesis = (
   text: string,
@@ -104,11 +177,13 @@ export const playSpeechSynthesis = (
     utterance.lang = langCodeMap[language.substring(0, 2)] || 'fr-FR';
 
     const voices = voicesLoaded.length > 0 ? voicesLoaded : window.speechSynthesis.getVoices();
-    const matchVoice = voices.find(
-      (v) => v.lang.startsWith(utterance.lang) || v.lang.toLowerCase().includes(language.toLowerCase())
-    );
-    if (matchVoice) {
-      utterance.voice = matchVoice;
+    if (voices && voices.length > 0) {
+      const matchVoice = voices.find(
+        (v) => v.lang.startsWith(utterance.lang) || v.lang.toLowerCase().includes(language.toLowerCase())
+      );
+      if (matchVoice) {
+        utterance.voice = matchVoice;
+      }
     }
 
     utterance.onend = () => {
@@ -118,6 +193,7 @@ export const playSpeechSynthesis = (
       if (onEnd) onEnd();
     };
 
+    // Synchronous execution inside gesture loop
     window.speechSynthesis.speak(utterance);
     return true;
   } catch (e) {
@@ -158,6 +234,7 @@ export const stopAudio = () => {
 /**
  * Play text-to-speech audio with multi-tier failover
  * Optimized for Vercel + Median (GoNative) Android & iOS WebViews!
+ * Triggers speechSynthesis SYNCHRONOUSLY within user gesture event context.
  */
 export const playAudio = (
   text: string,
@@ -191,12 +268,19 @@ export const playAudio = (
     }
   };
 
+  // Tier 1: Try Web Speech API synchronously first if available in browser/WebView
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    const success = playSpeechSynthesis(cleanText, language, rate, finishOnce);
+    if (success) {
+      return true;
+    }
+  }
+
+  // Tier 2: StreamElements / Google TTS MP3 Fallback
   const langCode = getLangCode(language);
   const pollyVoice = getPollyVoice(language);
   const encodedText = encodeURIComponent(cleanText.substring(0, 200));
 
-  // Multi-tier Audio Sources
-  // StreamElements (Amazon Polly) provides CORS-open MP3 streams that work everywhere including Median/GoNative WebViews & Vercel
   const audioUrls = [
     `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(pollyVoice)}&text=${encodedText}`,
     `https://translate.google.com/translate_tts?ie=UTF-8&client=gtx&q=${encodedText}&tl=${langCode}`,
@@ -212,9 +296,7 @@ export const playAudio = (
     }
 
     if (currentUrlIndex >= audioUrls.length) {
-      // Fallback to native Web Speech API if all remote streams fail (e.g., offline or restricted WebView)
-      console.warn('All remote audio streams failed on Median/WebView/Web, using Web Speech API fallback...');
-      playSpeechSynthesis(cleanText, language, rate, finishOnce);
+      finishOnce();
       return;
     }
 
@@ -230,14 +312,11 @@ export const playAudio = (
       audio.onended = finishOnce;
 
       audio.onerror = () => {
-        console.warn(`Audio stream failed (${url}), trying next audio source...`);
         tryNextSource();
       };
 
-      // Set safety timeout (3s) for WebViews in case audio loads infinitely without error
       audioTimeoutTimer = setTimeout(() => {
         if (!hasFinished && activeAudio === audio && audio.paused) {
-          console.warn(`Audio playback stalled or timed out on ${url}, trying next source...`);
           tryNextSource();
         }
       }, 3000);
@@ -247,13 +326,11 @@ export const playAudio = (
 
       const playPromise = audio.play();
       if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          console.warn(`Audio play promise rejected for ${url}:`, err);
+        playPromise.catch(() => {
           tryNextSource();
         });
       }
     } catch (err) {
-      console.warn('HTMLAudioElement error:', err);
       tryNextSource();
     }
   };
@@ -261,5 +338,6 @@ export const playAudio = (
   tryNextSource();
   return true;
 };
+
 
 

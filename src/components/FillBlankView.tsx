@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Deck, FillBlankExercise, FlashCard } from '../types';
 import { BUILTIN_FILL_BLANK_EXERCISES, generateExercisesFromCards } from '../data/fillBlankExercises';
-import { playAudio, stopAudio } from '../lib/audio';
+import { playAudio, stopAudio, useVoicesReady } from '../lib/audio';
 import {
   Volume2,
   CheckCircle2,
@@ -60,6 +60,7 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
 
   // Live Stream overlay toggle (simulates live broadcast atmosphere from screenshot)
   const [enableLiveStreamOverlay, setEnableLiveStreamOverlay] = useState<boolean>(true);
+  const voicesReady = useVoicesReady();
 
   // ----- LIVE MODE WORD-BY-WORD BUILDER STATE -----
   const [selectedWords, setSelectedWords] = useState<string[]>([]);
@@ -513,8 +514,10 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
                   </div>
                   <button
                     type="button"
+                    disabled={!voicesReady}
                     onClick={() => playAudio(currentExercise.fullSentence, 'fr')}
-                    className="p-1.5 rounded-xl bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-300 font-bold text-xs flex items-center gap-1 cursor-pointer"
+                    className={`p-1.5 rounded-xl bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-300 font-bold text-xs flex items-center gap-1 ${!voicesReady ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    title={voicesReady ? "Écouter" : "Carregando vozes..."}
                   >
                     <Volume2 className="w-4 h-4" />
                     <span>Écouter la Prononciation</span>
@@ -622,9 +625,10 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
 
               <button
                 type="button"
+                disabled={!voicesReady}
                 onClick={() => playAudio(currentExercise.fullSentence, 'fr')}
-                className="px-2.5 py-1.5 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-200 hover:bg-blue-200 transition-all flex items-center gap-1 shrink-0 cursor-pointer"
-                title="Ctrl pour écouter"
+                className={`px-2.5 py-1.5 rounded-xl bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-200 hover:bg-blue-200 transition-all flex items-center gap-1 shrink-0 ${!voicesReady ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                title={voicesReady ? "Ctrl pour écouter" : "Carregando vozes..."}
               >
                 <span className="px-1 py-0.5 rounded bg-blue-600 text-white text-[9px] font-mono">
                   Ctrl
@@ -735,8 +739,10 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
             <div className="flex items-center justify-between border-b border-zinc-100 dark:border-zinc-800/60 pb-3">
               <button
                 type="button"
+                disabled={!voicesReady}
                 onClick={() => playAudio(currentExercise.fullSentence, 'fr')}
-                className="flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+                className={`flex items-center gap-2 text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 px-3 py-1.5 rounded-full transition-colors ${!voicesReady ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                title={voicesReady ? "Écouter" : "Carregando vozes..."}
               >
                 <Volume2 className="w-4 h-4" />
                 <span>Écouter la Prononciation</span>
@@ -833,8 +839,10 @@ export const FillBlankView: React.FC<FillBlankViewProps> = ({ cards, decks }) =>
                   </div>
                   <button
                     type="button"
+                    disabled={!voicesReady}
                     onClick={() => playAudio(currentExercise.fullSentence, 'fr')}
-                    className="p-1.5 rounded-xl bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-300 font-bold text-xs flex items-center gap-1 cursor-pointer"
+                    className={`p-1.5 rounded-xl bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-300 font-bold text-xs flex items-center gap-1 ${!voicesReady ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    title={voicesReady ? "Écouter" : "Carregando vozes..."}
                   >
                     <Volume2 className="w-4 h-4" />
                     <span>Écouter</span>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FlashCard, ChallengeQuestion } from '../types';
-import { playAudio } from '../lib/audio';
+import { playAudio, useVoicesReady } from '../lib/audio';
 import {
   Zap,
   Sparkles,
@@ -31,6 +31,7 @@ export const ChallengeTab: React.FC<ChallengeTabProps> = ({
   // Config & state
   const [quizFocus, setQuizFocus] = useState<'difficult' | 'all' | 'quick'>('difficult');
   const [questionCount, setQuestionCount] = useState<number>(5);
+  const voicesReady = useVoicesReady();
   const [questions, setQuestions] = useState<ChallengeQuestion[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -411,9 +412,10 @@ export const ChallengeTab: React.FC<ChallengeTabProps> = ({
                 </span>
                 <button
                   type="button"
+                  disabled={!voicesReady}
                   onClick={() => playAudio(currentQ.promptSentence, 'fr')}
-                  className="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors flex items-center gap-1.5 text-xs font-semibold cursor-pointer"
-                  title="Ouvir frase em francês"
+                  className={`p-2 rounded-xl bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors flex items-center gap-1.5 text-xs font-semibold ${!voicesReady ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  title={voicesReady ? "Ouvir frase em francês" : "Carregando vozes..."}
                 >
                   <Volume2 className="w-4 h-4" />
                   <span>Ouvir</span>

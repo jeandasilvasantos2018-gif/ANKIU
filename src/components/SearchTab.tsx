@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FlashCard } from '../types';
 import { Search, Star, Volume2, Sparkles, Network, Filter } from 'lucide-react';
-import { playAudio } from '../lib/audio';
+import { playAudio, useVoicesReady } from '../lib/audio';
 
 interface SearchTabProps {
   cards: FlashCard[];
@@ -18,6 +18,7 @@ export const SearchTab: React.FC<SearchTabProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('Todos');
+  const voicesReady = useVoicesReady();
 
   const tagsList = [
     'Todos',
@@ -128,9 +129,10 @@ export const SearchTab: React.FC<SearchTabProps> = ({
 
             <div className="flex items-center gap-1">
               <button
+                disabled={!voicesReady}
                 onClick={() => playAudio(card.word, card.language)}
-                className="p-2 rounded-xl text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors"
-                title="Pronúncia"
+                className={`p-2 rounded-xl text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors ${!voicesReady ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title={voicesReady ? "Pronúncia" : "Carregando vozes..."}
               >
                 <Volume2 className="w-4 h-4" />
               </button>

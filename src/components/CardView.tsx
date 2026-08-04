@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FlashCard, ReviewRating } from '../types';
 import { getIntervalPreview } from '../lib/sm2';
-import { playAudio } from '../lib/audio';
+import { playAudio, useVoicesReady } from '../lib/audio';
 import { Volume2, Star, ChevronDown, ChevronUp, Network, Sparkles, Snail } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -27,6 +27,7 @@ export const CardView: React.FC<CardViewProps> = ({
   const [showMore, setShowMore] = useState(false);
   const [isSlowAudio, setIsSlowAudio] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const voicesReady = useVoicesReady();
 
   const handlePlayAudio = () => {
     setIsPlaying(true);
@@ -86,13 +87,16 @@ export const CardView: React.FC<CardViewProps> = ({
         {/* 2. Audio button & Slow toggle & Pronunciation & Classe Gramatical */}
         <div className="flex items-center gap-2 justify-center flex-wrap my-1">
           <button
+            disabled={!voicesReady}
             onClick={handlePlayAudio}
             className={`p-2.5 rounded-full transition-all flex items-center justify-center ${
-              isPlaying
+              !voicesReady
+                ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed opacity-60'
+                : isPlaying
                 ? 'bg-blue-600 text-white scale-110 shadow-md'
                 : 'bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900'
             }`}
-            title="Ouvir pronúncia"
+            title={voicesReady ? "Ouvir pronúncia" : "Carregando vozes do sistema..."}
           >
             <Volume2 className="w-5 h-5" />
           </button>
@@ -250,12 +254,13 @@ export const CardView: React.FC<CardViewProps> = ({
                         <button
                           key={i}
                           type="button"
+                          disabled={!voicesReady}
                           onClick={(e) => {
                             e.stopPropagation();
                             playAudio(fam, card.language || 'fr');
                           }}
-                          className="text-xs px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-900/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 transition-all flex items-center gap-1.5 font-medium group active:scale-95 cursor-pointer"
-                          title={`Ouvir pronúncia de "${fam}"`}
+                          className={`text-xs px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-900/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 transition-all flex items-center gap-1.5 font-medium group active:scale-95 ${!voicesReady ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                          title={voicesReady ? `Ouvir pronúncia de "${fam}"` : "Aguardando vozes..."}
                         >
                           <Volume2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform shrink-0" />
                           <span>{fam}</span>
