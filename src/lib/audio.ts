@@ -224,6 +224,101 @@ const getPollyVoice = (lang: string = 'fr'): string => {
 };
 
 /**
+ * Builds the URL for our own Vercel TTS serverless endpoint
+ */
+export const getVercelTtsUrl = (text: string, language: string = 'fr'): string => {
+  const cleanText = text.replace(/______/g, '').trim().substring(0, 300);
+  const langCode = getLangCode(language);
+  const params = new URLSearchParams({
+    text: cleanText,
+    lang: langCode,
+  });
+
+  let baseUrl = 'https://ankiu.vercel.app/api/tts';
+  if (
+    typeof window !== 'undefined' &&
+    window.location &&
+    window.location.origin &&
+    window.location.origin.includes('ankiu.vercel.app')
+  ) {
+    baseUrl = '/api/tts';
+  }
+
+  return `${baseUrl}?${params.toString()}`;
+};
+
+/**
+ * Explicit test function to play directly via Vercel TTS API
+ */
+export const playVercelTts = (
+  text: string,
+  language: string = 'fr',
+  rate: number = 1.0,
+  onEnd?: () => void
+): boolean => {
+  stopAudio();
+  const cleanText = text.replace(/______/g, '').trim();
+  if (!cleanText) {
+    if (onEnd) onEnd();
+    return false;
+  }
+
+  const url = getVercelTtsUrl(cleanText, language);
+  console.log('[TTS] Trying Vercel TTS API');
+  addTtsLog('info', `Trying Vercel TTS API (${url})`);
+
+  try {
+    const audio = new Audio();
+    activeAudio = audio;
+    audio.playbackRate = rate;
+
+    let hasFinished = false;
+    const finishOnce = () => {
+      if (!hasFinished) {
+        hasFinished = true;
+        stopAudio();
+        if (onEnd) onEnd();
+      }
+    };
+
+    audio.onplay = () => {
+      console.log('[TTS] Vercel TTS started');
+      addTtsLog('info', 'Vercel TTS started');
+    };
+
+    audio.onended = () => {
+      console.log('[TTS] Vercel TTS ended');
+      addTtsLog('info', 'Vercel TTS ended');
+      finishOnce();
+    };
+
+    audio.onerror = (e) => {
+      console.warn('[TTS] Vercel TTS failed', e);
+      addTtsLog('warn', 'Vercel TTS failed', e);
+      finishOnce();
+    };
+
+    audio.src = url;
+    audio.load();
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((err) => {
+        console.warn('[TTS] Vercel TTS failed', err);
+        addTtsLog('warn', 'Vercel TTS failed', err?.message || err);
+        finishOnce();
+      });
+    }
+    return true;
+  } catch (err) {
+    console.warn('[TTS] Vercel TTS failed', err);
+    addTtsLog('warn', 'Vercel TTS exception', err);
+    if (onEnd) onEnd();
+    return false;
+  }
+};
+
+/**
  * Stop any active audio playback immediately
  */
 export const stopAudio = () => {
@@ -453,6 +548,10 @@ export const playAudio = (
 
     const audioSources = [
       {
+        name: 'Vercel TTS API',
+        url: getVercelTtsUrl(cleanText, language),
+      },
+      {
         name: 'StreamElements',
         url: `https://api.streamelements.com/kappa/v2/speech?voice=${encodeURIComponent(pollyVoice)}&text=${encodedText}`,
       },
@@ -483,6 +582,9 @@ export const playAudio = (
       const source = audioSources[currentSourceIndex];
       currentSourceIndex++;
 
+      if (source.name === 'Vercel TTS API') {
+        console.log('[TTS] Trying Vercel TTS API');
+      }
       addTtsLog('info', `Trying fallback source: ${source.name}`);
 
       try {
@@ -491,12 +593,24 @@ export const playAudio = (
         audio.playbackRate = rate;
         // Do NOT set crossOrigin = 'anonymous' as it causes CORS preflight block on public audio URLs
 
+        audio.onplay = () => {
+          if (source.name === 'Vercel TTS API') {
+            console.log('[TTS] Vercel TTS started');
+          }
+        };
+
         audio.onended = () => {
+          if (source.name === 'Vercel TTS API') {
+            console.log('[TTS] Vercel TTS ended');
+          }
           addTtsLog('info', `Audio playback completed using ${source.name}`);
           finishOnce();
         };
 
         audio.onerror = (e) => {
+          if (source.name === 'Vercel TTS API') {
+            console.warn('[TTS] Vercel TTS failed', e);
+          }
           addTtsLog('warn', `Audio source failed (${source.name})`, e);
           tryNextSource();
         };
@@ -514,11 +628,17 @@ export const playAudio = (
         const playPromise = audio.play();
         if (playPromise !== undefined) {
           playPromise.catch((err) => {
+            if (source.name === 'Vercel TTS API') {
+              console.warn('[TTS] Vercel TTS failed', err);
+            }
             addTtsLog('warn', `Play promise rejected for ${source.name}`, err?.message || err);
             tryNextSource();
           });
         }
       } catch (err) {
+        if (source.name === 'Vercel TTS API') {
+          console.warn('[TTS] Vercel TTS failed', err);
+        }
         addTtsLog('warn', `Exception playing audio source ${source.name}`, err);
         tryNextSource();
       }

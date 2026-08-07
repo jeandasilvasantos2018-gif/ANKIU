@@ -3,6 +3,7 @@ import {
   useTtsLogs,
   clearTtsLogs,
   playAudio,
+  playVercelTts,
   playButtonSound,
   useVoicesReady,
   TTSLogEntry,
@@ -56,6 +57,10 @@ export const TTSDebugModal: React.FC = () => {
 
   const testFrench = () => {
     playAudio('Bonjour tout le monde! C’est un test de prononciation.', 'fr');
+  };
+
+  const testVercelTts = () => {
+    playVercelTts('Bonjour, ceci est un test de l’API Vercel TTS.', 'fr');
   };
 
   const testEnglish = () => {
@@ -158,14 +163,21 @@ export const TTSDebugModal: React.FC = () => {
                 className="px-2.5 py-1.5 bg-blue-600/20 text-blue-300 hover:bg-blue-600/30 border border-blue-500/30 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
               >
                 <Volume2 className="w-3.5 h-3.5" />
-                <span>Français ("Bonjour")</span>
+                <span>Français (Auto)</span>
+              </button>
+              <button
+                onClick={testVercelTts}
+                className="px-2.5 py-1.5 bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600/30 border border-emerald-500/30 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+                <span>Testar Vercel TTS</span>
               </button>
               <button
                 onClick={testEnglish}
                 className="px-2.5 py-1.5 bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600/30 border border-indigo-500/30 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors"
               >
                 <Volume2 className="w-3.5 h-3.5" />
-                <span>English ("Hello")</span>
+                <span>English (Auto)</span>
               </button>
               <button
                 onClick={testButtonEffect}
