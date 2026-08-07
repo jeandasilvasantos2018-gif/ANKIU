@@ -4,6 +4,84 @@
  */
 import { useState, useEffect } from 'react';
 
+export interface TTSLogEntry {
+  id: string;
+  timestamp: string;
+  level: 'info' | 'warn' | 'error';
+  message: string;
+}
+
+let ttsLogs: TTSLogEntry[] = [];
+const logSubscribers: Set<(logs: TTSLogEntry[]) => void> = new Set();
+
+const addTtsLog = (level: 'info' | 'warn' | 'error', msg: string, details?: any) => {
+  let detailStr = '';
+  if (details !== undefined) {
+    try {
+      if (typeof details === 'object' && details !== null) {
+        if (Array.isArray(details)) {
+          detailStr = ` (${details.length} item(s): ${details.slice(0, 5).map((d) => d?.name || d?.lang || JSON.stringify(d)).join(', ')})`;
+        } else if (details.name || details.lang) {
+          detailStr = ` {voice: "${details.name || 'N/A'}", lang: "${details.lang || 'N/A'}"}`;
+        } else {
+          detailStr = ` ${JSON.stringify(details)}`;
+        }
+      } else {
+        detailStr = ` ${String(details)}`;
+      }
+    } catch (e) {
+      detailStr = ` [object]`;
+    }
+  }
+
+  const fullMsg = `${msg}${detailStr}`;
+  const now = new Date();
+  const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}.${now.getMilliseconds().toString().padStart(3, '0')}`;
+
+  const entry: TTSLogEntry = {
+    id: Math.random().toString(36).substring(2, 9),
+    timestamp: timeStr,
+    level,
+    message: fullMsg,
+  };
+
+  ttsLogs = [entry, ...ttsLogs].slice(0, 150); // Keep last 150 entries
+
+  // Also log to console
+  if (level === 'info') console.log(`[TTS] ${fullMsg}`);
+  else if (level === 'warn') console.warn(`[TTS] ${fullMsg}`);
+  else console.error(`[TTS] ${fullMsg}`);
+
+  logSubscribers.forEach((fn) => fn([...ttsLogs]));
+};
+
+export const getTtsLogs = (): TTSLogEntry[] => [...ttsLogs];
+
+export const clearTtsLogs = () => {
+  ttsLogs = [];
+  logSubscribers.forEach((fn) => fn([...ttsLogs]));
+};
+
+export const subscribeTtsLogs = (callback: (logs: TTSLogEntry[]) => void) => {
+  logSubscribers.add(callback);
+  callback([...ttsLogs]);
+  return () => {
+    logSubscribers.delete(callback);
+  };
+};
+
+export const useTtsLogs = (): TTSLogEntry[] => {
+  const [logs, setLogs] = useState<TTSLogEntry[]>(() => getTtsLogs());
+
+  useEffect(() => {
+    return subscribeTtsLogs((newLogs) => {
+      setLogs(newLogs);
+    });
+  }, []);
+
+  return logs;
+};
+
 let voicesReady = false;
 let voicesLoaded: SpeechSynthesisVoice[] = [];
 let activeAudio: HTMLAudioElement | null = null;
@@ -34,6 +112,7 @@ export const checkVoicesReady = (): boolean => {
     if (voices && voices.length > 0) {
       voicesLoaded = voices;
       voicesReady = true;
+      addTtsLog('info', `Voices loaded successfully: ${voices.length} voice(s) available`);
       notifyListeners();
       return true;
     }
@@ -193,12 +272,12 @@ export const playSpeechSynthesis = (
   onErrorCallback: (err?: any) => void
 ): void => {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-    console.warn('[TTS] Native speech not supported in this environment');
+    addTtsLog('warn', 'Native speech not supported in this environment');
     onErrorCallback('speechSynthesis not supported');
     return;
   }
 
-  console.log('[TTS] Request:', { text, language, rate });
+  addTtsLog('info', 'Request', { text, language, rate });
 
   try {
     let wasCancelled = false;
@@ -232,7 +311,7 @@ export const playSpeechSynthesis = (
     utterance.lang = targetLang;
 
     const voices = voicesLoaded.length > 0 ? voicesLoaded : window.speechSynthesis.getVoices();
-    console.log('[TTS] Available voices:', voices);
+    addTtsLog('info', 'Available voices', voices);
 
     let selectedVoice: SpeechSynthesisVoice | undefined;
     if (voices && voices.length > 0) {
@@ -251,7 +330,7 @@ export const playSpeechSynthesis = (
       }
     }
 
-    console.log('[TTS] Selected voice:', selectedVoice?.name, selectedVoice?.lang);
+    addTtsLog('info', 'Selected voice', selectedVoice ? { name: selectedVoice.name, lang: selectedVoice.lang } : 'Default system voice');
 
     let hasStarted = false;
     let hasFinished = false;
@@ -269,7 +348,7 @@ export const playSpeechSynthesis = (
     utterance.onstart = () => {
       if (hasFinished) return;
       hasStarted = true;
-      console.log('[TTS] Native speech started');
+      addTtsLog('info', 'Native speech started');
       cleanup();
       onStartCallback();
     };
@@ -277,7 +356,7 @@ export const playSpeechSynthesis = (
     utterance.onend = () => {
       if (hasFinished) return;
       hasFinished = true;
-      console.log('[TTS] Native speech ended');
+      addTtsLog('info', 'Native speech ended');
       cleanup();
       onEndCallback();
     };
@@ -285,7 +364,7 @@ export const playSpeechSynthesis = (
     utterance.onerror = (event) => {
       if (hasFinished) return;
       hasFinished = true;
-      console.warn('[TTS] Native speech error:', event);
+      addTtsLog('warn', 'Native speech error', event?.error || event);
       cleanup();
       if (!hasStarted) {
         onErrorCallback(event);
@@ -297,7 +376,7 @@ export const playSpeechSynthesis = (
     nativeStartTimeoutTimer = setTimeout(() => {
       if (!hasStarted && !hasFinished) {
         hasFinished = true;
-        console.warn('[TTS] Native speech did not start, using fallback');
+        addTtsLog('warn', 'Native speech did not start within 1.8s, triggering Tier 2 fallback');
         cleanup();
         try {
           window.speechSynthesis.cancel();
@@ -307,11 +386,11 @@ export const playSpeechSynthesis = (
     }, 1800);
 
     const executeSpeak = () => {
-      console.log('[TTS] Native speak requested');
+      addTtsLog('info', 'Native speak requested');
       try {
         window.speechSynthesis.speak(utterance);
       } catch (e) {
-        console.warn('[TTS] Native speak exception:', e);
+        addTtsLog('warn', 'Native speak exception', e);
         if (!hasStarted && !hasFinished) {
           hasFinished = true;
           cleanup();
@@ -326,7 +405,7 @@ export const playSpeechSynthesis = (
       executeSpeak();
     }
   } catch (e) {
-    console.warn('[TTS] Native speech setup error:', e);
+    addTtsLog('warn', 'Native speech setup error', e);
     activeUtterance = null;
     onErrorCallback(e);
   }
@@ -396,7 +475,7 @@ export const playAudio = (
       }
 
       if (currentSourceIndex >= audioSources.length) {
-        console.error('[TTS] All audio methods failed');
+        addTtsLog('error', 'All audio methods failed');
         finishOnce();
         return;
       }
@@ -404,11 +483,7 @@ export const playAudio = (
       const source = audioSources[currentSourceIndex];
       currentSourceIndex++;
 
-      if (source.name.includes('StreamElements')) {
-        console.log('[TTS] Trying StreamElements');
-      } else if (source.name.includes('Google TTS')) {
-        console.log('[TTS] Trying Google TTS');
-      }
+      addTtsLog('info', `Trying fallback source: ${source.name}`);
 
       try {
         const audio = new Audio();
@@ -416,16 +491,19 @@ export const playAudio = (
         audio.playbackRate = rate;
         // Do NOT set crossOrigin = 'anonymous' as it causes CORS preflight block on public audio URLs
 
-        audio.onended = finishOnce;
+        audio.onended = () => {
+          addTtsLog('info', `Audio playback completed using ${source.name}`);
+          finishOnce();
+        };
 
         audio.onerror = (e) => {
-          console.warn(`[TTS] Audio source failed (${source.name}):`, e);
+          addTtsLog('warn', `Audio source failed (${source.name})`, e);
           tryNextSource();
         };
 
         audioTimeoutTimer = setTimeout(() => {
           if (!hasFinished && activeAudio === audio && audio.paused) {
-            console.warn(`[TTS] Audio playback stalled on ${source.name}, trying next source`);
+            addTtsLog('warn', `Audio playback stalled on ${source.name}, trying next source`);
             tryNextSource();
           }
         }, 3500);
@@ -436,12 +514,12 @@ export const playAudio = (
         const playPromise = audio.play();
         if (playPromise !== undefined) {
           playPromise.catch((err) => {
-            console.warn(`[TTS] Play promise rejected for ${source.name}:`, err);
+            addTtsLog('warn', `Play promise rejected for ${source.name}`, err?.message || err);
             tryNextSource();
           });
         }
       } catch (err) {
-        console.warn(`[TTS] Exception playing audio source ${source.name}:`, err);
+        addTtsLog('warn', `Exception playing audio source ${source.name}`, err);
         tryNextSource();
       }
     };
@@ -464,14 +542,29 @@ export const playAudio = (
       },
       (err) => {
         // onError or timeout: Fallback to Tier 2
-        console.warn('[TTS] Native speech failed or timed out, switching to Tier 2 fallback:', err);
+        addTtsLog('warn', 'Native speech failed or timed out, switching to Tier 2 fallback', err);
         playFallbackAudio();
       }
     );
   } else {
     // Web Speech API unavailable, go straight to Tier 2
+    addTtsLog('warn', 'Web Speech API unavailable, going straight to Tier 2 fallback');
     playFallbackAudio();
   }
 
   return true;
+};
+
+/**
+ * Plays a button click sound effect
+ */
+export const playButtonSound = () => {
+  try {
+    const audio = new Audio('https://www.soundjay.com/buttons/sounds/button-3.mp3');
+    audio.play().catch((err) => {
+      console.warn('[Audio] Button sound play prevented:', err);
+    });
+  } catch (e) {
+    console.warn('[Audio] Error playing button sound:', e);
+  }
 };

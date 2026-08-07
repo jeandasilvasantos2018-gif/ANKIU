@@ -23,6 +23,7 @@ import { StudySessionView } from './components/StudySessionView';
 
 import { ExplorarMode } from './components/ExplorarMode';
 import { AddEditCardModal } from './components/AddEditCardModal';
+import { TTSDebugModal } from './components/TTSDebugModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
@@ -268,6 +269,9 @@ export default function App() {
           onSave={handleSaveNewCard}
         />
       )}
+
+      {/* Floating TTS Debug Panel Modal */}
+      <TTSDebugModal />
     </div>
   );
 }
