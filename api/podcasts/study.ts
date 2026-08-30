@@ -1,87 +1,82 @@
 import { GoogleGenAI, Type } from '@google/genai';
+import ffmpegPath from 'ffmpeg-static';
+import { createWriteStream } from 'node:fs';
+import { mkdir, readdir, readFile, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { pipeline } from 'node:stream/promises';
+import { Readable } from 'node:stream';
+
+export const config = { maxDuration: 300 };
+
+const execFileAsync = promisify(execFile);
+const DIRECT_UPLOAD_LIMIT = 20 * 1024 * 1024;
+const CHUNK_SECONDS = 12 * 60;
+const DOWNLOAD_TIMEOUT_MS = 90_000;
 
 const getGemini = () => {
   const apiKey = process.env.GEMINI_API_KEY;
   return apiKey ? new GoogleGenAI({ apiKey }) : null;
 };
 
-const DIRECT_UPLOAD_LIMIT = 20 * 1024 * 1024;
-
-async function inspectAudioUrl(audioUrl: string) {
+async function downloadEpisode(audioUrl: string, targetPath: string) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
-  try {
-    let response = await fetch(audioUrl, {
-      method: 'HEAD',
-      redirect: 'follow',
-      signal: controller.signal,
-      headers: { 'User-Agent': 'ANKIU/1.0 podcast transcription' },
-    }).catch(() => null as any);
-
-    if (!response || !response.ok) {
-      response = await fetch(audioUrl, {
-        method: 'GET',
-        redirect: 'follow',
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'ANKIU/1.0 podcast transcription',
-          Range: 'bytes=0-0',
-        },
-      });
-    }
-
-    if (!response.ok && response.status !== 206) {
-      throw new Error(`Audio inspection failed with HTTP ${response.status}`);
-    }
-
-    const contentRange = response.headers.get('content-range') || '';
-    const rangeTotal = Number(contentRange.split('/')[1] || 0);
-    const contentLength = rangeTotal || Number(response.headers.get('content-length') || 0) || undefined;
-    const contentType = response.headers.get('content-type') || 'audio/mpeg';
-    const finalUrl = response.url || audioUrl;
-
-    try { await response.body?.cancel(); } catch {}
-    return { finalUrl, contentLength, contentType };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function downloadSmallAudio(audioUrl: string, contentTypeHint?: string) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45000);
+  const timeout = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
   try {
     const response = await fetch(audioUrl, {
       redirect: 'follow',
       signal: controller.signal,
       headers: { 'User-Agent': 'ANKIU/1.0 podcast transcription' },
     });
-    if (!response.ok) throw new Error(`Audio download failed with HTTP ${response.status}`);
-    const buffer = await response.arrayBuffer();
-    if (!buffer.byteLength) throw new Error('Podcast audio download returned an empty file.');
-    if (buffer.byteLength > DIRECT_UPLOAD_LIMIT) throw new Error('Audio became too large for direct upload.');
-    const contentType = response.headers.get('content-type') || contentTypeHint || 'audio/mpeg';
-    const ext = contentType.includes('ogg') ? 'ogg' : contentType.includes('wav') ? 'wav' : contentType.includes('mp4') || contentType.includes('m4a') ? 'm4a' : 'mp3';
-    return { buffer, contentType, filename: `episode.${ext}` };
+    if (!response.ok || !response.body) throw new Error(`Audio download failed with HTTP ${response.status}`);
+    await pipeline(Readable.fromWeb(response.body as any), createWriteStream(targetPath));
+    const fileStat = await stat(targetPath);
+    if (!fileStat.size) throw new Error('Podcast audio download returned an empty file.');
+    return { size: fileStat.size, contentType: response.headers.get('content-type') || 'audio/mpeg', finalUrl: response.url || audioUrl };
   } finally {
     clearTimeout(timeout);
   }
 }
 
-async function transcribeWithGroq(groqKey: string, episode: any) {
-  const inspected = await inspectAudioUrl(String(episode.audioUrl));
+function extensionForContentType(contentType = '') {
+  if (contentType.includes('ogg')) return 'ogg';
+  if (contentType.includes('wav')) return 'wav';
+  if (contentType.includes('mp4') || contentType.includes('m4a')) return 'm4a';
+  return 'mp3';
+}
+
+async function segmentAudio(inputPath: string, workDir: string) {
+  if (!ffmpegPath) throw new Error('FFmpeg is unavailable in this deployment.');
+  const outputPattern = path.join(workDir, 'chunk-%03d.mp3');
+  await execFileAsync(ffmpegPath, [
+    '-hide_banner', '-loglevel', 'error', '-y',
+    '-i', inputPath,
+    '-map', '0:a:0',
+    '-vn',
+    '-ac', '1',
+    '-ar', '16000',
+    '-b:a', '48k',
+    '-f', 'segment',
+    '-segment_time', String(CHUNK_SECONDS),
+    '-reset_timestamps', '1',
+    outputPattern,
+  ], { timeout: 120_000, maxBuffer: 4 * 1024 * 1024 });
+
+  const chunks = (await readdir(workDir))
+    .filter((name) => /^chunk-\d{3}\.mp3$/.test(name))
+    .sort()
+    .map((name) => path.join(workDir, name));
+  if (!chunks.length) throw new Error('FFmpeg could not create podcast segments.');
+  return chunks;
+}
+
+async function callGroq(groqKey: string, filePath: string, episode: any, attempt = 0): Promise<any> {
+  const buffer = await readFile(filePath);
   const form = new FormData();
-
-  // Small files are uploaded directly. Large podcast episodes are sent using the
-  // fully resolved enclosure URL. This avoids both the 25 MB attachment ceiling
-  // and the 301/302 redirect problem common in podcast feeds.
-  if (inspected.contentLength && inspected.contentLength <= DIRECT_UPLOAD_LIMIT) {
-    const audio = await downloadSmallAudio(inspected.finalUrl, inspected.contentType);
-    form.append('file', new Blob([audio.buffer], { type: audio.contentType }), audio.filename);
-  } else {
-    form.append('url', inspected.finalUrl);
-  }
-
+  form.append('file', new Blob([buffer], { type: 'audio/mpeg' }), path.basename(filePath));
   form.append('model', 'whisper-large-v3-turbo');
   form.append('language', 'fr');
   form.append('response_format', 'verbose_json');
@@ -89,24 +84,85 @@ async function transcribeWithGroq(groqKey: string, episode: any) {
   form.append('timestamp_granularities[]', 'segment');
   form.append('prompt', `Transcription fidèle en français. Titre: ${episode.title || ''}. Podcast: ${episode.podcastName || ''}.`);
 
-  const groqResponse = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+  const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
     method: 'POST',
     headers: { Authorization: `Bearer ${groqKey}` },
     body: form,
   });
 
-  if (!groqResponse.ok) {
-    const detail = await groqResponse.text();
-    console.error('[Groq Whisper] failed', groqResponse.status, detail.slice(0, 600));
-    throw new Error(`Groq transcription failed: ${detail.slice(0, 260)}`);
+  if (response.status === 429 && attempt < 2) {
+    const retryAfter = Math.max(2, Number(response.headers.get('retry-after') || 2));
+    await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
+    return callGroq(groqKey, filePath, episode, attempt + 1);
   }
 
-  return groqResponse.json();
+  if (!response.ok) {
+    const detail = await response.text();
+    console.error('[Groq Whisper] failed', response.status, detail.slice(0, 600));
+    throw new Error(`Groq transcription failed: ${detail.slice(0, 260)}`);
+  }
+  return response.json();
+}
+
+async function transcribeEpisode(groqKey: string, episode: any) {
+  const workDir = path.join(tmpdir(), `ankiu-podcast-${randomUUID()}`);
+  await mkdir(workDir, { recursive: true });
+  const inputPath = path.join(workDir, 'episode.bin');
+
+  try {
+    const downloaded = await downloadEpisode(String(episode.audioUrl), inputPath);
+    let files: string[];
+    let chunked = false;
+
+    if (downloaded.size <= DIRECT_UPLOAD_LIMIT) {
+      const ext = extensionForContentType(downloaded.contentType);
+      const renamedPath = path.join(workDir, `episode.${ext}`);
+      const original = await readFile(inputPath);
+      await import('node:fs/promises').then(({ writeFile }) => writeFile(renamedPath, original));
+      files = [renamedPath];
+    } else {
+      files = await segmentAudio(inputPath, workDir);
+      chunked = true;
+    }
+
+    const transcriptParts: string[] = [];
+    const allSegments: Array<{ start: number; end: number; text: string }> = [];
+
+    for (let index = 0; index < files.length; index += 1) {
+      const part = await callGroq(groqKey, files[index], episode);
+      const text = String(part.text || '').trim();
+      if (text) transcriptParts.push(text);
+
+      const offset = chunked ? index * CHUNK_SECONDS : 0;
+      if (Array.isArray(part.segments) && part.segments.length) {
+        for (const segment of part.segments) {
+          const segmentText = String(segment.text || '').trim();
+          if (!segmentText) continue;
+          allSegments.push({
+            start: offset + Number(segment.start || 0),
+            end: offset + Number(segment.end || 0),
+            text: segmentText,
+          });
+        }
+      } else if (text) {
+        const duration = Number(part.duration || (chunked ? CHUNK_SECONDS : episode.duration || 0));
+        allSegments.push({ start: offset, end: offset + Math.max(0, duration), text });
+      }
+    }
+
+    return {
+      text: transcriptParts.join('\n\n').trim(),
+      segments: allSegments,
+      chunkCount: files.length,
+      chunked,
+    };
+  } finally {
+    await rm(workDir, { recursive: true, force: true }).catch(() => undefined);
+  }
 }
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
   const groqKey = process.env.GROQ_API_KEY;
   if (!groqKey) return res.status(500).json({ error: 'GROQ_API_KEY is not configured.' });
 
@@ -115,20 +171,26 @@ export default async function handler(req: any, res: any) {
     const episode = body.episode || {};
     if (!episode.id || !episode.audioUrl) return res.status(400).json({ error: 'Episode id and audioUrl are required.' });
 
-    const transcription: any = await transcribeWithGroq(groqKey, episode);
-    const transcript = String(transcription.text || '').trim();
+    const transcription = await transcribeEpisode(groqKey, episode);
+    const transcript = transcription.text;
     if (!transcript) return res.status(502).json({ error: 'Groq returned an empty transcript.' });
 
-    const segments = Array.isArray(transcription.segments)
-      ? transcription.segments.map((s: any) => ({ start: Number(s.start || 0), end: Number(s.end || 0), text: String(s.text || '').trim() })).filter((s: any) => s.text)
-      : [];
-
+    const segments = transcription.segments;
     const gemini = getGemini();
     if (!gemini) {
-      return res.status(200).json({ success: true, study: { episodeId: episode.id, transcript, segments, translationEn: '', summaryEn: '', level: 'B1', category: 'Conversations', objective: 'Understand the main ideas and key expressions in this French episode.', vocabulary: [], keyExpressions: [], generatedAt: new Date().toISOString() }, warning: 'GEMINI_API_KEY is not configured; transcription is available without AI enrichment.' });
+      return res.status(200).json({
+        success: true,
+        study: {
+          episodeId: episode.id, transcript, segments, translationEn: '', summaryEn: '', level: 'B1', category: 'Conversations',
+          objective: 'Understand the main ideas and key expressions in this French episode.', vocabulary: [], keyExpressions: [],
+          generatedAt: new Date().toISOString(),
+        },
+        processing: { chunked: transcription.chunked, chunkCount: transcription.chunkCount },
+        warning: 'GEMINI_API_KEY is not configured; transcription is available without AI enrichment.',
+      });
     }
 
-    const prompt = `You are processing a real French podcast episode for a language-learning app.\nReturn accurate educational metadata based ONLY on the transcript.\nAll explanations, summaries and translations must be in English. French vocabulary and expressions must remain in French.\nDo not invent content that is not supported by the transcript.\n\nEpisode title: ${episode.title || ''}\nPodcast: ${episode.podcastName || ''}\nTranscript:\n${transcript.slice(0, 60000)}\n\nTasks:\n1. Translate the full transcript into natural English.\n2. Write a concise English summary.\n3. Estimate CEFR listening level: A1, A2, B1, B2, or C1.\n4. Choose one category from: Vie quotidienne, Voyage, Culture, Actualités, Histoires, Conversations, Travail, Études.\n5. Write one specific listening objective in English.\n6. Extract 6-12 useful French vocabulary items from the transcript.\n7. Extract 4-8 useful French expressions with concise English meanings.`;
+    const prompt = `You are processing a real French podcast episode for a language-learning app.\nReturn accurate educational metadata based ONLY on the transcript.\nAll explanations, summaries and translations must be in English. French vocabulary and expressions must remain in French.\nDo not invent content that is not supported by the transcript.\n\nEpisode title: ${episode.title || ''}\nPodcast: ${episode.podcastName || ''}\nTranscript:\n${transcript.slice(0, 120000)}\n\nTasks:\n1. Translate the transcript into natural English as completely as possible.\n2. Write a concise English summary.\n3. Estimate CEFR listening level: A1, A2, B1, B2, or C1.\n4. Choose one category from: Vie quotidienne, Voyage, Culture, Actualités, Histoires, Conversations, Travail, Études.\n5. Write one specific listening objective in English.\n6. Extract 6-12 useful French vocabulary items from the transcript.\n7. Extract 4-8 useful French expressions with concise English meanings.`;
 
     const aiResponse = await gemini.models.generateContent({
       model: 'gemini-3.6-flash',
@@ -150,7 +212,11 @@ export default async function handler(req: any, res: any) {
     });
 
     const enrichment = JSON.parse(aiResponse.text || '{}');
-    return res.status(200).json({ success: true, study: { episodeId: episode.id, transcript, segments, ...enrichment, generatedAt: new Date().toISOString() } });
+    return res.status(200).json({
+      success: true,
+      study: { episodeId: episode.id, transcript, segments, ...enrichment, generatedAt: new Date().toISOString() },
+      processing: { chunked: transcription.chunked, chunkCount: transcription.chunkCount },
+    });
   } catch (error: any) {
     console.error('[Podcast study pipeline] error', error);
     return res.status(500).json({ error: error?.message || 'Podcast study processing failed.' });
