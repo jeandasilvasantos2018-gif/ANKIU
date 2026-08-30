@@ -19,14 +19,8 @@
   --ankiu-shadow-soft: 0 10px 30px rgba(117, 69, 83, 0.09);
 }
 
-* {
-  box-sizing: border-box;
-}
-
-html {
-  background: var(--ankiu-cream);
-}
-
+* { box-sizing: border-box; }
+html { background: var(--ankiu-cream); }
 body {
   margin: 0;
   min-width: 320px;
@@ -38,28 +32,10 @@ body {
     linear-gradient(180deg, #fffaf6 0%, #fff5ef 100%);
   font-family: Inter, ui-rounded, "SF Pro Rounded", "Nunito", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-button {
-  -webkit-tap-highlight-color: transparent;
-}
-
-::selection {
-  background: rgba(255, 127, 152, 0.28);
-  color: var(--ankiu-ink);
-}
-
-.dark body,
-html.dark {
-  background: #241c20;
-}
-
+button, input, select, textarea { font: inherit; }
+button { -webkit-tap-highlight-color: transparent; }
+::selection { background: rgba(255, 127, 152, 0.28); color: var(--ankiu-ink); }
+.dark body, html.dark { background: #241c20; }
 .dark body {
   color: #fff7f3;
   background:
@@ -76,64 +52,149 @@ html.dark {
     radial-gradient(circle at 95% 7%, rgba(255, 127, 152, 0.20), transparent 24rem),
     linear-gradient(180deg, rgba(255, 250, 247, 0.96), rgba(255, 245, 239, 0.98));
 }
-
 .dark .ankiu-app-shell {
   color: #fff8f5;
   background:
     radial-gradient(circle at 18% -5%, rgba(244, 95, 122, 0.15), transparent 28rem),
     linear-gradient(180deg, #261d22 0%, #1e181b 100%);
 }
-
 .ankiu-surface {
   background: rgba(255, 253, 251, 0.86);
   border: 1px solid rgba(255, 190, 177, 0.42);
   box-shadow: var(--ankiu-shadow-soft);
   backdrop-filter: blur(16px);
 }
-
-.dark .ankiu-surface {
-  background: rgba(55, 42, 48, 0.82);
-  border-color: rgba(255, 160, 174, 0.14);
-}
-
-.ankiu-gradient-primary {
-  background: linear-gradient(135deg, #ff8298 0%, #ff9d86 56%, #ffc39c 100%);
-}
-
-.ankiu-gradient-soft {
-  background: linear-gradient(135deg, rgba(255, 127, 152, 0.12), rgba(255, 197, 168, 0.24));
-}
-
+.dark .ankiu-surface { background: rgba(55, 42, 48, 0.82); border-color: rgba(255, 160, 174, 0.14); }
+.ankiu-gradient-primary { background: linear-gradient(135deg, #ff8298 0%, #ff9d86 56%, #ffc39c 100%); }
+.ankiu-gradient-soft { background: linear-gradient(135deg, rgba(255, 127, 152, 0.12), rgba(255, 197, 168, 0.24)); }
 .ankiu-pill {
   border-radius: 999px;
   border: 1px solid rgba(255, 162, 174, 0.28);
   background: rgba(255, 255, 255, 0.72);
   box-shadow: 0 6px 20px rgba(117, 69, 83, 0.06);
 }
+.ankiu-float { animation: ankiuFloat 4.2s ease-in-out infinite; }
+.ankiu-sparkle { animation: ankiuTwinkle 2.4s ease-in-out infinite; transform-origin: center; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-.ankiu-float {
-  animation: ankiuFloat 4.2s ease-in-out infinite;
+/* Warm compatibility layer for legacy Tailwind screens. This keeps behavior intact while
+   moving Decks, Search, Stats, Settings, Practice, Challenge and study overlays onto the
+   same visual language as the redesigned Home screen. */
+.ankiu-app-shell .bg-white { background-color: rgba(255, 253, 251, .94) !important; }
+.ankiu-app-shell .bg-zinc-50 { background-color: #fff8f3 !important; }
+.ankiu-app-shell .bg-zinc-100 { background-color: #fff1ea !important; }
+.ankiu-app-shell .bg-zinc-200 { background-color: #f9dfd7 !important; }
+.ankiu-app-shell .bg-zinc-900 { background-color: #3a2c32 !important; }
+.ankiu-app-shell .bg-zinc-950 { background-color: #251c20 !important; }
+.ankiu-app-shell .bg-black { background-color: #241b20 !important; }
+
+.ankiu-app-shell .text-zinc-950,
+.ankiu-app-shell .text-zinc-900 { color: #3d2d34 !important; }
+.ankiu-app-shell .text-zinc-800 { color: #523c45 !important; }
+.ankiu-app-shell .text-zinc-700 { color: #68505a !important; }
+.ankiu-app-shell .text-zinc-600 { color: #80646f !important; }
+.ankiu-app-shell .text-zinc-500 { color: #987b86 !important; }
+.ankiu-app-shell .text-zinc-400 { color: #b1949f !important; }
+.ankiu-app-shell .border-zinc-100,
+.ankiu-app-shell .border-zinc-200,
+.ankiu-app-shell .border-zinc-300 { border-color: #f3d8d0 !important; }
+
+.ankiu-app-shell .bg-blue-600,
+.ankiu-app-shell .bg-blue-500 { background-color: #f46982 !important; }
+.ankiu-app-shell .hover\:bg-blue-700:hover,
+.ankiu-app-shell .hover\:bg-blue-600:hover { background-color: #e65673 !important; }
+.ankiu-app-shell .text-blue-600,
+.ankiu-app-shell .text-blue-500,
+.ankiu-app-shell .text-blue-700 { color: #e75c78 !important; }
+.ankiu-app-shell .border-blue-500,
+.ankiu-app-shell .border-blue-600 { border-color: #f2768d !important; }
+.ankiu-app-shell .bg-blue-50 { background-color: #fff0f3 !important; }
+.ankiu-app-shell .bg-blue-100 { background-color: #ffe1e7 !important; }
+
+.ankiu-app-shell .bg-indigo-50 { background-color: #f5f1ff !important; }
+.ankiu-app-shell .bg-indigo-500,
+.ankiu-app-shell .bg-indigo-600 { background-color: #9b88db !important; }
+.ankiu-app-shell .text-indigo-600,
+.ankiu-app-shell .text-indigo-700 { color: #7e69c5 !important; }
+.ankiu-app-shell .border-indigo-200,
+.ankiu-app-shell .border-indigo-500 { border-color: #d9cff8 !important; }
+
+.ankiu-app-shell .bg-emerald-50 { background-color: #effaf4 !important; }
+.ankiu-app-shell .bg-emerald-500,
+.ankiu-app-shell .bg-emerald-600 { background-color: #79c49f !important; }
+.ankiu-app-shell .text-emerald-600,
+.ankiu-app-shell .text-emerald-700 { color: #519878 !important; }
+.ankiu-app-shell .border-emerald-500 { border-color: #8cd0ae !important; }
+
+.ankiu-app-shell .bg-amber-50 { background-color: #fff6df !important; }
+.ankiu-app-shell .bg-amber-500,
+.ankiu-app-shell .bg-amber-600 { background-color: #efb85f !important; }
+.ankiu-app-shell .text-amber-600,
+.ankiu-app-shell .text-amber-700 { color: #cf8c39 !important; }
+.ankiu-app-shell .border-amber-200,
+.ankiu-app-shell .border-amber-500 { border-color: #f5d69d !important; }
+
+.ankiu-app-shell .bg-purple-50 { background-color: #f7f1ff !important; }
+.ankiu-app-shell .bg-purple-500,
+.ankiu-app-shell .bg-purple-600 { background-color: #b395dc !important; }
+.ankiu-app-shell .text-purple-600,
+.ankiu-app-shell .text-purple-700 { color: #8c6bbb !important; }
+
+.ankiu-app-shell .bg-red-50 { background-color: #fff0f0 !important; }
+.ankiu-app-shell .bg-red-500,
+.ankiu-app-shell .bg-red-600 { background-color: #ee7c82 !important; }
+.ankiu-app-shell .text-red-600,
+.ankiu-app-shell .text-red-700 { color: #d95e68 !important; }
+
+.ankiu-app-shell .rounded-xl { border-radius: 18px !important; }
+.ankiu-app-shell .rounded-2xl { border-radius: 24px !important; }
+.ankiu-app-shell .rounded-3xl { border-radius: 30px !important; }
+.ankiu-app-shell .shadow-sm,
+.ankiu-app-shell .shadow-md,
+.ankiu-app-shell .shadow-lg,
+.ankiu-app-shell .shadow-xl,
+.ankiu-app-shell .shadow-2xl { box-shadow: 0 14px 38px rgba(112, 66, 80, .11) !important; }
+
+.ankiu-app-shell input,
+.ankiu-app-shell select,
+.ankiu-app-shell textarea {
+  border-color: #efd6cf !important;
+  background-color: rgba(255, 253, 251, .92) !important;
+  color: #47343c !important;
+  border-radius: 18px !important;
+}
+.ankiu-app-shell input:focus,
+.ankiu-app-shell select:focus,
+.ankiu-app-shell textarea:focus {
+  outline: none;
+  border-color: #f18aa0 !important;
+  box-shadow: 0 0 0 4px rgba(244, 105, 130, .10) !important;
 }
 
-.ankiu-sparkle {
-  animation: ankiuTwinkle 2.4s ease-in-out infinite;
-  transform-origin: center;
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+.dark .ankiu-app-shell .dark\:bg-zinc-900 { background-color: #382a30 !important; }
+.dark .ankiu-app-shell .dark\:bg-zinc-950 { background-color: #241b20 !important; }
+.dark .ankiu-app-shell .dark\:bg-black { background-color: #21191d !important; }
+.dark .ankiu-app-shell .dark\:text-zinc-50,
+.dark .ankiu-app-shell .dark\:text-zinc-100 { color: #fff8f5 !important; }
+.dark .ankiu-app-shell .dark\:text-zinc-300 { color: #e2ccd4 !important; }
+.dark .ankiu-app-shell .dark\:text-zinc-400 { color: #c8adb7 !important; }
+.dark .ankiu-app-shell .dark\:border-zinc-800 { border-color: #5a414b !important; }
+.dark .ankiu-app-shell .dark\:bg-blue-950\/50,
+.dark .ankiu-app-shell .dark\:bg-blue-950\/60 { background-color: rgba(91, 49, 62, .66) !important; }
+.dark .ankiu-app-shell .dark\:text-blue-400 { color: #ff9caf !important; }
+.dark .ankiu-app-shell input,
+.dark .ankiu-app-shell select,
+.dark .ankiu-app-shell textarea {
+  background-color: #382a30 !important;
+  color: #fff8f5 !important;
+  border-color: #5d444e !important;
 }
 
 @keyframes ankiuFloat {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
 }
-
 @keyframes ankiuTwinkle {
   0%, 100% { opacity: .45; transform: scale(.82) rotate(0deg); }
   50% { opacity: 1; transform: scale(1.12) rotate(12deg); }
