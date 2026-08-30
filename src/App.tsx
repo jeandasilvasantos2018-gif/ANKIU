@@ -28,10 +28,7 @@ export default function App() {
   const [addModalDeckId, setAddModalDeckId] = useState<string | undefined>(undefined);
   const [addModalInitialWord, setAddModalInitialWord] = useState<string>('');
 
-  const refreshAllState = () => {
-    setCards(getCards()); setDecks(getDecks()); setStats(getStats()); setSettings(getSettings());
-  };
-
+  const refreshAllState = () => { setCards(getCards()); setDecks(getDecks()); setStats(getStats()); setSettings(getSettings()); };
   useEffect(() => { refreshAllState(); }, []);
   useEffect(() => {
     const isDark = settings.theme === 'dark' || (settings.theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
@@ -39,31 +36,20 @@ export default function App() {
   }, [settings.theme]);
 
   const handleStartStudy = (deck?: Deck) => {
-    let targetCards = deck ? cards.filter((c) => c.deckId === deck.id) : cards;
+    const targetCards = deck ? cards.filter((c) => c.deckId === deck.id) : cards;
     const due = targetCards.filter((c) => c.state === 'Novo' || c.state === 'Revisão' || c.state === 'Aprendendo');
     setStudyDeck(deck); setSessionCards(due.length > 0 ? due : targetCards); setIsStudying(true);
   };
-
   const handleUpdateSettings = (newSettings: UserSettings) => { setSettings(newSettings); saveSettings(newSettings); };
   const handleCreateDeck = (name: string, language: string, flag: string, description?: string) => {
     const newDeck: Deck = { id: `deck_${Date.now()}`, name, language, flag, description, createdAt: new Date().toISOString() };
     const updated = [...decks, newDeck]; setDecks(updated); saveDecks(updated);
   };
-
   const handleSaveNewCard = (cardData: Partial<FlashCard>) => {
     const activeDeck = decks.find((d) => d.id === cardData.deckId) || decks[0];
-    const newCard: FlashCard = {
-      id: `card_${Date.now()}`, word: cardData.word || 'Word', language: cardData.language || activeDeck?.language || 'en',
-      deckId: cardData.deckId || activeDeck?.id || 'deck_en', pronunciation: cardData.pronunciation || '',
-      partOfSpeech: cardData.partOfSpeech || 'Noun', translation: cardData.translation || '', definition: cardData.definition || '',
-      example: cardData.example || '', exampleTranslation: cardData.exampleTranslation || '', synonyms: cardData.synonyms || [],
-      antonyms: cardData.antonyms || [], related: cardData.related || [], expressions: cardData.expressions || [],
-      collocations: cardData.collocations || [], family: cardData.family || [], tags: cardData.tags || ['General'],
-      state: 'Novo', interval: 0, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString(),
-    };
+    const newCard: FlashCard = { id: `card_${Date.now()}`, word: cardData.word || 'Word', language: cardData.language || activeDeck?.language || 'en', deckId: cardData.deckId || activeDeck?.id || 'deck_en', pronunciation: cardData.pronunciation || '', partOfSpeech: cardData.partOfSpeech || 'Noun', translation: cardData.translation || '', definition: cardData.definition || '', example: cardData.example || '', exampleTranslation: cardData.exampleTranslation || '', synonyms: cardData.synonyms || [], antonyms: cardData.antonyms || [], related: cardData.related || [], expressions: cardData.expressions || [], collocations: cardData.collocations || [], family: cardData.family || [], tags: cardData.tags || ['General'], state: 'Novo', interval: 0, easeFactor: 2.5, repetitions: 0, nextReview: new Date().toISOString() };
     const updatedCards = [newCard, ...cards]; setCards(updatedCards); saveCards(updatedCards); setShowAddModal(false);
   };
-
   const handleToggleFavoriteCard = (cardId: string) => { toggleFavorite(cardId); setCards(getCards()); };
   const handleOpenAddCardModal = (deckId?: string, initialWord: string = '') => { setAddModalDeckId(deckId); setAddModalInitialWord(initialWord); setShowAddModal(true); };
 
@@ -78,7 +64,6 @@ export default function App() {
         {activeTab === 'stats' && <StatsTab stats={stats} cards={cards} />}
         {activeTab === 'settings' && <SettingsTab settings={settings} onUpdateSettings={handleUpdateSettings} onRefreshAll={refreshAllState} />}
       </main>
-
       {!isStudying && <Navbar activeTab={activeTab} onSelectTab={(tab) => setActiveTab(tab)} />}
       {isStudying && <StudySessionView sessionCards={sessionCards} deck={studyDeck} allCards={cards} onClose={() => { setIsStudying(false); refreshAllState(); }} onRefreshCards={refreshAllState} onAddWordCard={(wordStr) => handleOpenAddCardModal(undefined, wordStr)} />}
       {explorarCard && <ExplorarMode card={explorarCard} allCards={cards} onSelectWord={(word) => { const found = cards.find((c) => c.word.toLowerCase() === word.toLowerCase()); found ? setExplorarCard(found) : handleOpenAddCardModal(undefined, word); }} onClose={() => setExplorarCard(null)} onAddWordCard={(wordStr) => handleOpenAddCardModal(undefined, wordStr)} />}
