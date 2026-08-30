@@ -1,10 +1,21 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PodcastEpisode, PodcastLevel, PodcastProgress, PodcastStudyData } from '../types';
 import { getPodcastProgressMap, markPodcastCompleted, savePodcastProgress } from '../lib/podcastProgress';
-import { Search, Play, Pause, RotateCcw, RotateCw, CheckCircle2, Headphones, BookOpen, Clock3, Sparkles, Loader2, FileText, Languages, GraduationCap, X } from 'lucide-react';
+import { Search, Play, Pause, RotateCcw, RotateCw, CheckCircle2, Headphones, Clock3, Sparkles, Loader2, FileText, Languages, GraduationCap, X } from 'lucide-react';
 
 const levels: Array<'Tous' | PodcastLevel> = ['Tous', 'A1', 'A2', 'B1', 'B2', 'C1'];
 const categories = ['Tous', 'Vie quotidienne', 'Voyage', 'Culture', 'Actualités', 'Histoires', 'Conversations', 'Travail', 'Études'];
+const categorySearchTerms: Record<string, string> = {
+  Tous: 'français facile',
+  'Vie quotidienne': 'vie quotidienne français',
+  Voyage: 'voyage français',
+  Culture: 'culture française',
+  'Actualités': 'actualités France français',
+  Histoires: 'histoires français',
+  Conversations: 'conversation français',
+  Travail: 'travail français',
+  'Études': 'études français',
+};
 const STUDY_CACHE_KEY = 'ankiu_podcast_study_v1';
 
 const formatTime = (seconds = 0) => {
@@ -51,10 +62,15 @@ export const PodcastsTab: React.FC = () => {
 
   useEffect(() => { searchPodcasts('français facile'); }, []);
 
+  const handleCategoryChange = (item: string) => {
+    setCategory(item);
+    searchPodcasts(categorySearchTerms[item] || item);
+  };
+
   const filtered = useMemo(() => episodes.filter((episode) => {
     const study = studyMap[episode.id];
-    const matchesLevel = level === 'Tous' || study?.level === level;
-    const matchesCategory = category === 'Tous' || study?.category === category;
+    const matchesLevel = level === 'Tous' || !study?.level || study.level === level;
+    const matchesCategory = category === 'Tous' || !study?.category || study.category === category;
     return matchesLevel && matchesCategory;
   }), [episodes, level, category, studyMap]);
 
@@ -64,6 +80,7 @@ export const PodcastsTab: React.FC = () => {
     setAudioError(null); setActiveEpisode(episode);
     const saved = progressMap[episode.id];
     const resumeAt = saved && !saved.completed && saved.currentTime >= 5 ? saved.currentTime : 0;
+    lastSavedRef.current = resumeAt;
     setCurrentTime(resumeAt); setDuration(saved?.duration || episode.duration || 0);
     setTimeout(() => {
       const audio = audioRef.current; if (!audio) return;
@@ -115,10 +132,11 @@ export const PodcastsTab: React.FC = () => {
     </header>
 
     <section className="grid gap-3">
-      <form onSubmit={(e) => { e.preventDefault(); searchPodcasts(); }} className="flex gap-2"><div className="relative flex-1"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#a9919b]" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher un podcast ou un sujet..." className="w-full pl-11 pr-4 py-3.5 rounded-[20px] border border-[#ecd8d2] bg-[#fffdfb] dark:bg-[#382b31] dark:border-[#5b444e] text-sm" /></div><button className="px-5 rounded-[20px] bg-[#8d79d6] text-white text-xs font-black">Rechercher</button></form>
+      <form onSubmit={(e) => { e.preventDefault(); setCategory('Tous'); searchPodcasts(); }} className="flex gap-2"><div className="relative flex-1"><Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#a9919b]" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher un podcast ou un sujet..." className="w-full pl-11 pr-4 py-3.5 rounded-[20px] border border-[#ecd8d2] bg-[#fffdfb] dark:bg-[#382b31] dark:border-[#5b444e] text-sm" /></div><button className="px-5 rounded-[20px] bg-[#8d79d6] text-white text-xs font-black">Rechercher</button></form>
       <div className="flex gap-2 overflow-x-auto no-scrollbar">{levels.map((item) => <button key={item} onClick={() => setLevel(item)} className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-black border ${level === item ? 'bg-[#8d79d6] text-white border-transparent' : 'bg-[#fffdfb] text-[#80646f] border-[#eed5cf]'}`}>{item}</button>)}</div>
-      <div className="flex gap-2 overflow-x-auto no-scrollbar">{categories.map((item) => <button key={item} onClick={() => setCategory(item)} className={`shrink-0 px-3 py-1.5 rounded-full text-[10px] font-bold border ${category === item ? 'bg-[#fff0f3] text-[#d95d78] border-[#ffd1da]' : 'bg-[#fffaf7] text-[#9a818a] border-[#eedbd5]'}`}>{item}</button>)}</div>
-      {(level !== 'Tous' || category !== 'Tous') && <p className="text-[10px] text-[#9a818a]">Les filtres pédagogiques s'appliquent aux épisodes déjà analysés par Gemini.</p>}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar">{categories.map((item) => <button key={item} onClick={() => handleCategoryChange(item)} disabled={loading} className={`shrink-0 px-3 py-1.5 rounded-full text-[10px] font-bold border disabled:opacity-60 ${category === item ? 'bg-[#fff0f3] text-[#d95d78] border-[#ffd1da]' : 'bg-[#fffaf7] text-[#9a818a] border-[#eedbd5]'}`}>{item}</button>)}</div>
+      {category !== 'Tous' && <p className="text-[10px] text-[#9a818a]">Le thème lance maintenant une nouvelle recherche de podcasts sur Taddy.</p>}
+      {level !== 'Tous' && <p className="text-[10px] text-[#9a818a]">Le niveau CEFR filtre les épisodes déjà analysés par Gemini; les épisodes non analysés restent visibles jusqu’à leur classification.</p>}
     </section>
 
     {error && <div className="rounded-[20px] border border-[#ffcfd5] bg-[#fff0f2] px-4 py-3 text-xs font-bold text-[#c45b64]">{error}</div>}
