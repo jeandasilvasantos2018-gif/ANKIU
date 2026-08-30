@@ -2,10 +2,7 @@ import React from 'react';
 import { ActiveTab } from '../types';
 import { Home, Layers, Sparkles, Zap, Search, BarChart3, Settings } from 'lucide-react';
 
-interface NavbarProps {
-  activeTab: ActiveTab;
-  onSelectTab: (tab: ActiveTab) => void;
-}
+interface NavbarProps { activeTab: ActiveTab; onSelectTab: (tab: ActiveTab) => void; }
 
 export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab }) => {
   const tabs: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
@@ -24,19 +21,8 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab }) => {
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
-            <button
-              key={tab.id}
-              onClick={() => onSelectTab(tab.id)}
-              aria-label={tab.label}
-              className={`relative min-w-[42px] flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-2xl transition-all duration-200 ${
-                isActive
-                  ? 'text-[#e65374] dark:text-[#ff9db0] font-bold -translate-y-1'
-                  : 'text-[#9a818a] dark:text-[#c9b3bb] hover:text-[#5c414c] dark:hover:text-white'
-              }`}
-            >
-              <span className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all ${isActive ? 'bg-gradient-to-br from-[#ffd4dc] to-[#ffe2cd] dark:from-[#633746] dark:to-[#553b38] shadow-[0_7px_16px_rgba(244,95,122,.18)]' : ''}`}>
-                {tab.icon}
-              </span>
+            <button key={tab.id} onClick={() => onSelectTab(tab.id)} aria-label={tab.label} className={`relative min-w-[42px] flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-2xl transition-all duration-200 ${isActive ? 'text-[#e65374] dark:text-[#ff9db0] font-bold -translate-y-1' : 'text-[#9a818a] dark:text-[#c9b3bb] hover:text-[#5c414c] dark:hover:text-white'}`}>
+              <span className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all ${isActive ? 'bg-gradient-to-br from-[#ffd4dc] to-[#ffe2cd] dark:from-[#633746] dark:to-[#553b38] shadow-[0_7px_16px_rgba(244,95,122,.18)]' : ''}`}>{tab.icon}</span>
               <span className="text-[9px] tracking-tight">{tab.label}</span>
               {isActive && <span className="absolute -top-1 right-1.5 text-[#ff9b85] text-[10px] ankiu-sparkle">✦</span>}
             </button>
