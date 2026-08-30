@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { PodcastEpisode, PodcastLevel, PodcastProgress, PodcastStudyData } from '../types';
 import { getPodcastProgressMap, markPodcastCompleted, savePodcastProgress } from '../lib/podcastProgress';
-import { Search, Play, Pause, RotateCcw, RotateCw, CheckCircle2, Headphones, Clock3, Sparkles, Loader2, FileText, Languages, GraduationCap, X } from 'lucide-react';
+import { Search, Play, Pause, RotateCcw, RotateCw, CheckCircle2, Headphones, Clock3, Sparkles, Loader2, FileText, Languages, GraduationCap, X, PlusCircle } from 'lucide-react';
 
 const levels: Array<'Tous' | PodcastLevel> = ['Tous', 'A1', 'A2', 'B1', 'B2', 'C1'];
 const categories = ['Tous', 'Vie quotidienne', 'Voyage', 'Culture', 'Actualités', 'Histoires', 'Conversations', 'Travail', 'Études'];
@@ -29,7 +29,11 @@ const readStudyCache = (): Record<string, PodcastStudyData> => {
   try { return JSON.parse(localStorage.getItem(STUDY_CACHE_KEY) || '{}'); } catch { return {}; }
 };
 
-export const PodcastsTab: React.FC = () => {
+interface PodcastsTabProps {
+  onAddWordCard?: (word: string) => void;
+}
+
+export const PodcastsTab: React.FC<PodcastsTabProps> = ({ onAddWordCard }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
   const lastSavedRef = useRef(0);
   const [query, setQuery] = useState('français facile');
@@ -56,8 +60,10 @@ export const PodcastsTab: React.FC = () => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || data.error || 'Impossible de charger les podcasts.');
       setEpisodes(data.episodes || []);
-    } catch (err: any) { setEpisodes([]); setError(err?.message || 'Impossible de charger les podcasts.'); }
-    finally { setLoading(false); }
+    } catch (err: any) {
+      setEpisodes([]);
+      setError(err?.message || 'Impossible de charger les podcasts.');
+    } finally { setLoading(false); }
   };
 
   useEffect(() => { searchPodcasts('français facile'); }, []);
@@ -78,57 +84,135 @@ export const PodcastsTab: React.FC = () => {
   };
 
   const filtered = episodes;
-
   const updateProgressState = (episodeId: string, next: PodcastProgress) => setProgressMap((prev) => ({ ...prev, [episodeId]: next }));
 
-  const loadEpisode = (episode: PodcastEpisode) => {
-    setAudioError(null); setActiveEpisode(episode);
+  const loadEpisode = (episode: PodcastEpisode, autoplay = true, startAt?: number) => {
+    setAudioError(null);
+    setActiveEpisode(episode);
     const saved = progressMap[episode.id];
-    const resumeAt = saved && !saved.completed && saved.currentTime >= 5 ? saved.currentTime : 0;
+    const resumeAt = typeof startAt === 'number' ? startAt : saved && !saved.completed && saved.currentTime >= 5 ? saved.currentTime : 0;
     lastSavedRef.current = resumeAt;
-    setCurrentTime(resumeAt); setDuration(saved?.duration || episode.duration || 0);
+    setCurrentTime(resumeAt);
+    setDuration(saved?.duration || episode.duration || 0);
     setTimeout(() => {
-      const audio = audioRef.current; if (!audio) return;
-      audio.src = episode.audioUrl; audio.load();
+      const audio = audioRef.current;
+      if (!audio) return;
+      audio.src = episode.audioUrl;
+      audio.load();
       const resume = () => {
         const max = Number.isFinite(audio.duration) ? Math.max(0, audio.duration - .25) : resumeAt;
         audio.currentTime = Math.min(resumeAt, max || resumeAt);
-        audio.play().catch(() => setIsPlaying(false));
+        if (autoplay) audio.play().catch(() => setIsPlaying(false));
       };
       if (audio.readyState >= 1) resume(); else audio.addEventListener('loadedmetadata', resume, { once: true });
     }, 0);
   };
 
-  const togglePlay = () => { const audio = audioRef.current; if (!audio || !activeEpisode) return; audio.paused ? audio.play().catch(() => setAudioError('Touchez à nouveau sur lecture.')) : audio.pause(); };
-  const seekBy = (delta: number) => { const audio = audioRef.current; if (!audio) return; audio.currentTime = Math.max(0, Math.min(audio.duration || Infinity, audio.currentTime + delta)); };
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio || !activeEpisode) return;
+    audio.paused ? audio.play().catch(() => setAudioError('Touchez à nouveau sur lecture.')) : audio.pause();
+  };
+
+  const toggleStudyAudio = () => {
+    if (!studyEpisode) return;
+    if (activeEpisode?.id !== studyEpisode.id) {
+      loadEpisode(studyEpisode, true, 0);
+      return;
+    }
+    togglePlay();
+  };
+
+  const seekBy = (delta: number) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = Math.max(0, Math.min(audio.duration || Infinity, audio.currentTime + delta));
+  };
+
+  const seekStudyTo = (seconds: number) => {
+    if (!studyEpisode) return;
+    if (activeEpisode?.id !== studyEpisode.id) {
+      loadEpisode(studyEpisode, true, seconds);
+      return;
+    }
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = Math.max(0, Math.min(audio.duration || Infinity, seconds));
+    setCurrentTime(audio.currentTime);
+  };
+
   const handleTimeUpdate = () => {
-    const audio = audioRef.current; if (!audio || !activeEpisode) return;
-    setCurrentTime(audio.currentTime); if (Number.isFinite(audio.duration)) setDuration(audio.duration);
+    const audio = audioRef.current;
+    if (!audio || !activeEpisode) return;
+    setCurrentTime(audio.currentTime);
+    if (Number.isFinite(audio.duration)) setDuration(audio.duration);
     if (Math.abs(audio.currentTime - lastSavedRef.current) >= 5) {
       lastSavedRef.current = audio.currentTime;
-      const saved = savePodcastProgress(activeEpisode.id, { currentTime: audio.currentTime, duration: Number.isFinite(audio.duration) ? audio.duration : activeEpisode.duration || 0, completed: progressMap[activeEpisode.id]?.completed || false });
+      const saved = savePodcastProgress(activeEpisode.id, {
+        currentTime: audio.currentTime,
+        duration: Number.isFinite(audio.duration) ? audio.duration : activeEpisode.duration || 0,
+        completed: progressMap[activeEpisode.id]?.completed || false,
+      });
       updateProgressState(activeEpisode.id, saved);
     }
   };
-  const handleEnded = () => { if (!activeEpisode) return; const d = audioRef.current?.duration || duration || activeEpisode.duration || 0; updateProgressState(activeEpisode.id, markPodcastCompleted(activeEpisode.id, d)); setCurrentTime(d); setIsPlaying(false); };
+
+  const handleEnded = () => {
+    if (!activeEpisode) return;
+    const d = audioRef.current?.duration || duration || activeEpisode.duration || 0;
+    updateProgressState(activeEpisode.id, markPodcastCompleted(activeEpisode.id, d));
+    setCurrentTime(d);
+    setIsPlaying(false);
+  };
 
   const processEpisode = async (episode: PodcastEpisode) => {
     const cached = studyMap[episode.id];
-    if (cached) { setStudyEpisode(episode); setStudyTab('transcript'); return; }
-    setStudyingId(episode.id); setError(null);
+    if (cached) {
+      setStudyEpisode(episode);
+      setStudyTab('transcript');
+      return;
+    }
+    setStudyingId(episode.id);
+    setError(null);
     try {
-      const response = await fetch('/api/podcasts/study', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ episode }) });
+      const response = await fetch('/api/podcasts/study', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ episode }),
+      });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || data.error || 'La transcription a échoué.');
       const study = data.study as PodcastStudyData;
       const next = { ...studyMap, [episode.id]: study };
-      setStudyMap(next); localStorage.setItem(STUDY_CACHE_KEY, JSON.stringify(next));
-      setStudyEpisode(episode); setStudyTab('transcript');
-    } catch (err: any) { setError(err?.message || 'La transcription a échoué.'); }
-    finally { setStudyingId(null); }
+      setStudyMap(next);
+      localStorage.setItem(STUDY_CACHE_KEY, JSON.stringify(next));
+      setStudyEpisode(episode);
+      setStudyTab('transcript');
+    } catch (err: any) {
+      setError(err?.message || 'La transcription a échoué.');
+    } finally { setStudyingId(null); }
+  };
+
+  const addTranscriptWord = (rawWord: string) => {
+    if (!onAddWordCard) return;
+    const clean = rawWord.replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '').trim();
+    if (clean.length < 2) return;
+    onAddWordCard(clean);
+  };
+
+  const renderClickableTranscript = (text: string) => {
+    const pieces = text.split(/([\p{L}À-ÖØ-öø-ÿŒœÇç]+(?:['’\-][\p{L}À-ÖØ-öø-ÿŒœÇç]+)*)/gu);
+    return pieces.map((piece, index) => {
+      const isWord = /^[\p{L}À-ÖØ-öø-ÿŒœÇç]+(?:['’\-][\p{L}À-ÖØ-öø-ÿŒœÇç]+)*$/u.test(piece);
+      if (!isWord) return <React.Fragment key={index}>{piece}</React.Fragment>;
+      return <button key={index} type="button" onClick={() => addTranscriptWord(piece)} title={`Ajouter « ${piece} » au deck`} className="inline rounded-md px-[2px] -mx-[1px] hover:bg-[#eee8ff] hover:text-[#765fc7] focus:bg-[#eee8ff] focus:text-[#765fc7] transition-colors cursor-pointer">{piece}</button>;
+    });
   };
 
   const activeStudy = studyEpisode ? studyMap[studyEpisode.id] : null;
+  const studyAudioIsActive = Boolean(studyEpisode && activeEpisode?.id === studyEpisode.id);
+  const studyCurrentTime = studyAudioIsActive ? currentTime : 0;
+  const studyDuration = studyAudioIsActive ? duration : (studyEpisode?.duration || 0);
 
   return <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 pt-7 pb-44 flex flex-col gap-6">
     <header className="rounded-[32px] p-5 sm:p-7 bg-gradient-to-br from-[#f3efff] via-[#fff7fb] to-[#fff0e9] dark:from-[#403650] dark:via-[#392c34] dark:to-[#42322f] border border-[#ded4ff] dark:border-[#5d4c73] relative overflow-hidden">
@@ -148,7 +232,9 @@ export const PodcastsTab: React.FC = () => {
 
     {!loading && <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {filtered.map((episode) => {
-        const progress = progressMap[episode.id]; const study = studyMap[episode.id]; const total = progress?.duration || episode.duration || 0;
+        const progress = progressMap[episode.id];
+        const study = studyMap[episode.id];
+        const total = progress?.duration || episode.duration || 0;
         const percent = progress?.completed ? 100 : total > 0 ? Math.min(100, Math.round((progress?.currentTime || 0) / total * 100)) : 0;
         const started = !progress?.completed && (progress?.currentTime || 0) >= 5;
         return <article key={episode.id} className="rounded-[28px] bg-[#fffdfb] dark:bg-[#382b31] border border-[#ecd8d2] dark:border-[#5b444e] overflow-hidden shadow-[0_12px_35px_rgba(112,66,80,.09)] flex flex-col">
@@ -165,12 +251,19 @@ export const PodcastsTab: React.FC = () => {
 
     <audio ref={audioRef} preload="metadata" onPlay={() => setIsPlaying(true)} onPause={() => setIsPlaying(false)} onTimeUpdate={handleTimeUpdate} onLoadedMetadata={() => { const d = audioRef.current?.duration || 0; if (Number.isFinite(d)) setDuration(d); }} onEnded={handleEnded} onError={() => { setAudioError('Impossible de lire cet épisode.'); setIsPlaying(false); }} />
 
-    {activeEpisode && <div className="fixed left-3 right-3 bottom-[92px] z-30 max-w-3xl mx-auto rounded-[28px] bg-[#fffdfb]/96 dark:bg-[#35282e]/96 border border-[#ddcff9] dark:border-[#5d4c73] backdrop-blur-xl shadow-[0_18px_55px_rgba(78,55,96,.22)] p-4"><div className="flex items-center gap-3"><div className="min-w-0 flex-1"><div className="text-[10px] font-black text-[#927fae]">EN ÉCOUTE</div><div className="font-black text-sm truncate">{activeEpisode.title}</div></div><button onClick={togglePlay} className="w-12 h-12 rounded-full bg-[#8d79d6] text-white flex items-center justify-center">{isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}</button></div><div className="mt-3 flex items-center gap-2"><span className="text-[10px] w-9">{formatTime(currentTime)}</span><input type="range" min={0} max={duration || 1} step={.1} value={Math.min(currentTime, duration || 1)} onChange={(e) => { const v = Number(e.target.value); if (audioRef.current) audioRef.current.currentTime = v; setCurrentTime(v); }} className="flex-1 accent-[#8d79d6]" /><span className="text-[10px] w-9 text-right">{formatTime(duration)}</span></div><div className="flex justify-center gap-3 mt-2"><button onClick={() => seekBy(-10)} className="px-3 py-2 rounded-2xl bg-[#f3efff] text-[#7e69c5] text-xs font-black flex gap-1"><RotateCcw className="w-4 h-4" />10s</button><button onClick={() => seekBy(10)} className="px-3 py-2 rounded-2xl bg-[#f3efff] text-[#7e69c5] text-xs font-black flex gap-1">10s<RotateCw className="w-4 h-4" /></button></div>{audioError && <div className="mt-2 text-center text-[10px] text-[#c45b64]">{audioError}</div>}</div>}
+    {activeEpisode && !studyEpisode && <div className="fixed left-3 right-3 bottom-[92px] z-30 max-w-3xl mx-auto rounded-[28px] bg-[#fffdfb]/96 dark:bg-[#35282e]/96 border border-[#ddcff9] dark:border-[#5d4c73] backdrop-blur-xl shadow-[0_18px_55px_rgba(78,55,96,.22)] p-4"><div className="flex items-center gap-3"><div className="min-w-0 flex-1"><div className="text-[10px] font-black text-[#927fae]">EN ÉCOUTE</div><div className="font-black text-sm truncate">{activeEpisode.title}</div></div><button onClick={togglePlay} className="w-12 h-12 rounded-full bg-[#8d79d6] text-white flex items-center justify-center">{isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}</button></div><div className="mt-3 flex items-center gap-2"><span className="text-[10px] w-9">{formatTime(currentTime)}</span><input type="range" min={0} max={duration || 1} step={.1} value={Math.min(currentTime, duration || 1)} onChange={(e) => { const v = Number(e.target.value); if (audioRef.current) audioRef.current.currentTime = v; setCurrentTime(v); }} className="flex-1 accent-[#8d79d6]" /><span className="text-[10px] w-9 text-right">{formatTime(duration)}</span></div><div className="flex justify-center gap-3 mt-2"><button onClick={() => seekBy(-10)} className="px-3 py-2 rounded-2xl bg-[#f3efff] text-[#7e69c5] text-xs font-black flex gap-1"><RotateCcw className="w-4 h-4" />10s</button><button onClick={() => seekBy(10)} className="px-3 py-2 rounded-2xl bg-[#f3efff] text-[#7e69c5] text-xs font-black flex gap-1">10s<RotateCw className="w-4 h-4" /></button></div>{audioError && <div className="mt-2 text-center text-[10px] text-[#c45b64]">{audioError}</div>}</div>}
 
-    {studyEpisode && activeStudy && <div className="fixed inset-0 z-50 bg-[#fff8f3]/96 dark:bg-[#241b20]/96 backdrop-blur-xl overflow-y-auto"><div className="max-w-4xl mx-auto p-4 sm:p-6"><div className="flex items-start justify-between gap-3"><div><span className="text-[10px] font-black uppercase text-[#8874c9]">Étude guidée · {activeStudy.level} · {activeStudy.category}</span><h2 className="text-2xl sm:text-3xl font-black mt-1">{studyEpisode.title}</h2><p className="mt-2 text-sm text-[#80666f]">{activeStudy.summaryEn}</p></div><button onClick={() => setStudyEpisode(null)} className="w-11 h-11 rounded-2xl bg-white flex items-center justify-center"><X className="w-5 h-5" /></button></div><div className="flex gap-2 mt-5 overflow-x-auto">{([['transcript','Transcription',FileText],['translation','English translation',Languages],['notes','Study notes',GraduationCap]] as const).map(([id,label,Icon]) => <button key={id} onClick={() => setStudyTab(id)} className={`px-4 py-2.5 rounded-full text-xs font-black flex gap-1.5 ${studyTab === id ? 'bg-[#8d79d6] text-white' : 'bg-white text-[#80646f]'}`}><Icon className="w-4 h-4" />{label}</button>)}</div><div className="mt-4 rounded-[28px] bg-white dark:bg-[#382b31] border border-[#ecd8d2] p-5 sm:p-7">
-      {studyTab === 'transcript' && <div className="space-y-3">{activeStudy.segments?.length ? activeStudy.segments.map((s, i) => <div key={i} className="grid grid-cols-[52px_1fr] gap-3"><span className="text-[10px] font-black text-[#8874c9] pt-1">{formatTime(s.start)}</span><p className="text-sm sm:text-base leading-relaxed">{s.text}</p></div>) : <p className="leading-relaxed whitespace-pre-wrap">{activeStudy.transcript}</p>}</div>}
-      {studyTab === 'translation' && <p className="text-sm sm:text-base leading-7 whitespace-pre-wrap">{activeStudy.translationEn}</p>}
-      {studyTab === 'notes' && <div className="space-y-5"><div><h3 className="text-xs font-black uppercase text-[#8874c9]">Listening objective</h3><p className="mt-1">{activeStudy.objective}</p></div><div><h3 className="text-xs font-black uppercase text-[#519878]">Vocabulary</h3><div className="flex flex-wrap gap-2 mt-2">{activeStudy.vocabulary.map((w) => <span key={w} className="px-3 py-1.5 rounded-full bg-[#eef9f3] text-[#519878] text-xs font-bold">{w}</span>)}</div></div><div><h3 className="text-xs font-black uppercase text-[#b77c31]">Key expressions</h3><div className="grid gap-2 mt-2">{activeStudy.keyExpressions.map((x, i) => <div key={i} className="p-3 rounded-2xl bg-[#fff5df]"><b>{x.french}</b><span className="text-sm"> — {x.english}</span></div>)}</div></div></div>}
-    </div></div></div>}
+    {studyEpisode && activeStudy && <div className="fixed inset-0 z-50 bg-[#fff8f3]/96 dark:bg-[#241b20]/96 backdrop-blur-xl overflow-y-auto"><div className="max-w-4xl mx-auto p-4 sm:p-6 pb-16"><div className="flex items-start justify-between gap-3"><div><span className="text-[10px] font-black uppercase text-[#8874c9]">Étude guidée · {activeStudy.level} · {activeStudy.category}</span><h2 className="text-2xl sm:text-3xl font-black mt-1">{studyEpisode.title}</h2><p className="mt-2 text-sm text-[#80666f]">{activeStudy.summaryEn}</p></div><button onClick={() => setStudyEpisode(null)} className="w-11 h-11 rounded-2xl bg-white flex items-center justify-center shrink-0"><X className="w-5 h-5" /></button></div>
+
+      <div className="mt-5 rounded-[24px] bg-white dark:bg-[#382b31] border border-[#ded4ff] dark:border-[#5d4c73] p-4 shadow-[0_10px_30px_rgba(90,72,130,.08)]"><div className="flex items-center gap-3"><button type="button" onClick={toggleStudyAudio} className="w-12 h-12 rounded-full bg-[#8d79d6] text-white flex items-center justify-center shrink-0">{studyAudioIsActive && isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}</button><div className="min-w-0 flex-1"><div className="text-[10px] font-black uppercase text-[#927fae]">Écouter pendant la lecture</div><div className="text-sm font-black truncate">{studyEpisode.podcastName}</div></div><Headphones className="w-5 h-5 text-[#8d79d6]" /></div><div className="mt-3 flex items-center gap-2"><span className="text-[10px] w-10">{formatTime(studyCurrentTime)}</span><input type="range" min={0} max={studyDuration || 1} step={.1} value={Math.min(studyCurrentTime, studyDuration || 1)} onChange={(e) => seekStudyTo(Number(e.target.value))} className="flex-1 accent-[#8d79d6]" /><span className="text-[10px] w-10 text-right">{formatTime(studyDuration)}</span></div><div className="flex justify-center gap-3 mt-2"><button type="button" onClick={() => studyAudioIsActive ? seekBy(-10) : loadEpisode(studyEpisode, true, 0)} className="px-3 py-2 rounded-2xl bg-[#f3efff] text-[#7e69c5] text-xs font-black flex gap-1"><RotateCcw className="w-4 h-4" />10s</button><button type="button" onClick={() => studyAudioIsActive ? seekBy(10) : loadEpisode(studyEpisode, true, 10)} className="px-3 py-2 rounded-2xl bg-[#f3efff] text-[#7e69c5] text-xs font-black flex gap-1">10s<RotateCw className="w-4 h-4" /></button></div>{audioError && <div className="mt-2 text-center text-[10px] text-[#c45b64]">{audioError}</div>}</div>
+
+      <div className="flex gap-2 mt-5 overflow-x-auto">{([['transcript','Transcription',FileText],['translation','English translation',Languages],['notes','Study notes',GraduationCap]] as const).map(([id,label,Icon]) => <button key={id} onClick={() => setStudyTab(id)} className={`px-4 py-2.5 rounded-full text-xs font-black flex gap-1.5 ${studyTab === id ? 'bg-[#8d79d6] text-white' : 'bg-white text-[#80646f]'}`}><Icon className="w-4 h-4" />{label}</button>)}</div>
+      {studyTab === 'transcript' && onAddWordCard && <div className="mt-3 flex items-center gap-2 text-[10px] font-bold text-[#8f7b85]"><PlusCircle className="w-3.5 h-3.5 text-[#8d79d6]" /> Cliquez sur un mot de la transcription pour l’ajouter à un deck.</div>}
+      <div className="mt-4 rounded-[28px] bg-white dark:bg-[#382b31] border border-[#ecd8d2] p-5 sm:p-7">
+        {studyTab === 'transcript' && <div className="space-y-3">{activeStudy.segments?.length ? activeStudy.segments.map((s, i) => <div key={i} className="grid grid-cols-[52px_1fr] gap-3"><button type="button" onClick={() => seekStudyTo(s.start)} className="text-[10px] font-black text-[#8874c9] pt-1 text-left hover:underline">{formatTime(s.start)}</button><p className="text-sm sm:text-base leading-relaxed">{onAddWordCard ? renderClickableTranscript(s.text) : s.text}</p></div>) : <p className="leading-relaxed whitespace-pre-wrap">{onAddWordCard ? renderClickableTranscript(activeStudy.transcript) : activeStudy.transcript}</p>}</div>}
+        {studyTab === 'translation' && <p className="text-sm sm:text-base leading-7 whitespace-pre-wrap">{activeStudy.translationEn}</p>}
+        {studyTab === 'notes' && <div className="space-y-5"><div><h3 className="text-xs font-black uppercase text-[#8874c9]">Listening objective</h3><p className="mt-1">{activeStudy.objective}</p></div><div><h3 className="text-xs font-black uppercase text-[#519878]">Vocabulary</h3><div className="flex flex-wrap gap-2 mt-2">{activeStudy.vocabulary.map((w) => <button type="button" onClick={() => onAddWordCard?.(w)} key={w} className="px-3 py-1.5 rounded-full bg-[#eef9f3] text-[#519878] text-xs font-bold hover:ring-2 hover:ring-[#bfe5d1]">{w}</button>)}</div></div><div><h3 className="text-xs font-black uppercase text-[#b77c31]">Key expressions</h3><div className="grid gap-2 mt-2">{activeStudy.keyExpressions.map((x, i) => <div key={i} className="p-3 rounded-2xl bg-[#fff5df]"><b>{x.french}</b><span className="text-sm"> — {x.english}</span></div>)}</div></div></div>}
+      </div>
+    </div></div>}
   </div>;
 };
