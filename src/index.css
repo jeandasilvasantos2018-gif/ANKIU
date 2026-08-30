@@ -99,6 +99,49 @@ button { -webkit-tap-highlight-color: transparent; }
 .ankiu-app-shell .shadow-sm, .ankiu-app-shell .shadow-md, .ankiu-app-shell .shadow-lg, .ankiu-app-shell .shadow-xl, .ankiu-app-shell .shadow-2xl { box-shadow: 0 14px 38px rgba(112, 66, 80, .11) !important; }
 .ankiu-app-shell input, .ankiu-app-shell select, .ankiu-app-shell textarea { border-color: #efd6cf !important; background-color: rgba(255, 253, 251, .92) !important; color: #47343c !important; border-radius: 18px !important; }
 .ankiu-app-shell input:focus, .ankiu-app-shell select:focus, .ankiu-app-shell textarea:focus { outline: none; border-color: #f18aa0 !important; box-shadow: 0 0 0 4px rgba(244, 105, 130, .10) !important; }
+
+/* Dark theme precedence audit: all light utility surfaces that use !important above
+   must receive equally-specific dark overrides. This prevents Android/iOS WebViews
+   from producing light cards with light text when the app is in dark mode. */
+.dark .ankiu-app-shell .bg-white,
+.dark .ankiu-app-shell [class~="bg-white/95"],
+.dark .ankiu-app-shell [class~="bg-white/90"],
+.dark .ankiu-app-shell [class~="bg-white/80"],
+.dark .ankiu-app-shell [class~="bg-white/50"] {
+  background-color: #382a30 !important;
+  color: #fff8f5 !important;
+}
+.dark .ankiu-app-shell .bg-zinc-50,
+.dark .ankiu-app-shell .bg-zinc-100,
+.dark .ankiu-app-shell .bg-zinc-200,
+.dark .ankiu-app-shell [class~="bg-zinc-50/95"],
+.dark .ankiu-app-shell [class~="bg-zinc-50/90"],
+.dark .ankiu-app-shell [class~="bg-zinc-50/50"] {
+  background-color: #34272d !important;
+  color: #fff8f5 !important;
+}
+.dark .ankiu-app-shell .bg-blue-50,
+.dark .ankiu-app-shell .bg-blue-100,
+.dark .ankiu-app-shell [class~="bg-blue-50/30"],
+.dark .ankiu-app-shell [class~="bg-blue-50/40"],
+.dark .ankiu-app-shell [class~="bg-blue-50/50"] { background-color: #4a2f3a !important; }
+.dark .ankiu-app-shell .bg-indigo-50 { background-color: #403650 !important; }
+.dark .ankiu-app-shell .bg-emerald-50 { background-color: #263a31 !important; }
+.dark .ankiu-app-shell .bg-amber-50 { background-color: #443724 !important; }
+.dark .ankiu-app-shell .bg-purple-50 { background-color: #3e3049 !important; }
+.dark .ankiu-app-shell .bg-red-50 { background-color: #472d32 !important; }
+.dark .ankiu-app-shell .text-zinc-950,
+.dark .ankiu-app-shell .text-zinc-900 { color: #fff8f5 !important; -webkit-text-fill-color: #fff8f5 !important; }
+.dark .ankiu-app-shell .text-zinc-800 { color: #f3e4e9 !important; -webkit-text-fill-color: #f3e4e9 !important; }
+.dark .ankiu-app-shell .text-zinc-700 { color: #ead7de !important; -webkit-text-fill-color: #ead7de !important; }
+.dark .ankiu-app-shell .text-zinc-600 { color: #dcc5cd !important; -webkit-text-fill-color: #dcc5cd !important; }
+.dark .ankiu-app-shell .text-zinc-500 { color: #cdb2bc !important; -webkit-text-fill-color: #cdb2bc !important; }
+.dark .ankiu-app-shell .text-zinc-400 { color: #c2a5af !important; -webkit-text-fill-color: #c2a5af !important; }
+.dark .ankiu-app-shell .border-zinc-100,
+.dark .ankiu-app-shell .border-zinc-200,
+.dark .ankiu-app-shell .border-zinc-300 { border-color: #59424b !important; }
+.dark .ankiu-app-shell .ankiu-pill { background: rgba(61, 46, 53, .92) !important; color: #fff8f5 !important; border-color: rgba(255, 160, 174, .16) !important; }
+
 .dark .ankiu-app-shell .dark\:bg-zinc-900 { background-color: #382a30 !important; }
 .dark .ankiu-app-shell .dark\:bg-zinc-950 { background-color: #241b20 !important; }
 .dark .ankiu-app-shell .dark\:bg-black { background-color: #21191d !important; }
@@ -111,10 +154,14 @@ button { -webkit-tap-highlight-color: transparent; }
 .dark .ankiu-app-shell [class~="dark:bg-zinc-900/95"], .dark .ankiu-app-shell [class~="dark:bg-zinc-900/90"], .dark .ankiu-app-shell [class~="dark:bg-black/50"] { background-color: rgba(50, 37, 43, .94) !important; }
 .dark .ankiu-app-shell input, .dark .ankiu-app-shell select, .dark .ankiu-app-shell textarea { background-color: #382a30 !important; color: #fff8f5 !important; border-color: #5d444e !important; }
 
-/* Podcast study transcript: keep strong contrast in Android/iOS WebViews. */
+/* Podcast study transcript remains intentionally light for reading, so force dark ink
+   even when the surrounding study modal is in dark mode or the Android WebView uses forced dark. */
 .ankiu-podcast-transcript,
 .ankiu-podcast-transcript p,
-.ankiu-podcast-transcript button:not(.ankiu-podcast-timestamp) {
+.ankiu-podcast-transcript button:not(.ankiu-podcast-timestamp),
+.dark .ankiu-podcast-transcript,
+.dark .ankiu-podcast-transcript p,
+.dark .ankiu-podcast-transcript button:not(.ankiu-podcast-timestamp) {
   color: #3d2d34 !important;
   -webkit-text-fill-color: #3d2d34 !important;
   opacity: 1 !important;
@@ -126,13 +173,11 @@ button { -webkit-tap-highlight-color: transparent; }
   -webkit-text-fill-color: #765fc7 !important;
   background-color: #eee8ff;
 }
-.ankiu-podcast-transcript .ankiu-podcast-timestamp {
+.ankiu-podcast-transcript .ankiu-podcast-timestamp,
+.dark .ankiu-podcast-transcript .ankiu-podcast-timestamp {
   color: #765fc7 !important;
   -webkit-text-fill-color: #765fc7 !important;
 }
-
-/* The clickable transcript words already carry a stable title attribute. Target them
-   directly so Android forced-dark WebViews cannot turn them white on a light panel. */
 .ankiu-app-shell button[title^="Ajouter «"],
 .dark .ankiu-app-shell button[title^="Ajouter «"] {
   color: #3d2d34 !important;
