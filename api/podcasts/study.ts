@@ -5,9 +5,49 @@ const getGemini = () => {
   return apiKey ? new GoogleGenAI({ apiKey }) : null;
 };
 
-const MAX_AUDIO_BYTES = 24 * 1024 * 1024;
+const DIRECT_UPLOAD_LIMIT = 20 * 1024 * 1024;
 
-async function downloadAudio(audioUrl: string) {
+async function inspectAudioUrl(audioUrl: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
+  try {
+    let response = await fetch(audioUrl, {
+      method: 'HEAD',
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: { 'User-Agent': 'ANKIU/1.0 podcast transcription' },
+    }).catch(() => null as any);
+
+    if (!response || !response.ok) {
+      response = await fetch(audioUrl, {
+        method: 'GET',
+        redirect: 'follow',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'ANKIU/1.0 podcast transcription',
+          Range: 'bytes=0-0',
+        },
+      });
+    }
+
+    if (!response.ok && response.status !== 206) {
+      throw new Error(`Audio inspection failed with HTTP ${response.status}`);
+    }
+
+    const contentRange = response.headers.get('content-range') || '';
+    const rangeTotal = Number(contentRange.split('/')[1] || 0);
+    const contentLength = rangeTotal || Number(response.headers.get('content-length') || 0) || undefined;
+    const contentType = response.headers.get('content-type') || 'audio/mpeg';
+    const finalUrl = response.url || audioUrl;
+
+    try { await response.body?.cancel(); } catch {}
+    return { finalUrl, contentLength, contentType };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function downloadSmallAudio(audioUrl: string, contentTypeHint?: string) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45000);
   try {
@@ -19,13 +59,49 @@ async function downloadAudio(audioUrl: string) {
     if (!response.ok) throw new Error(`Audio download failed with HTTP ${response.status}`);
     const buffer = await response.arrayBuffer();
     if (!buffer.byteLength) throw new Error('Podcast audio download returned an empty file.');
-    if (buffer.byteLength > MAX_AUDIO_BYTES) throw new Error('Podcast audio is larger than the transcription limit.');
-    const contentType = response.headers.get('content-type') || 'audio/mpeg';
+    if (buffer.byteLength > DIRECT_UPLOAD_LIMIT) throw new Error('Audio became too large for direct upload.');
+    const contentType = response.headers.get('content-type') || contentTypeHint || 'audio/mpeg';
     const ext = contentType.includes('ogg') ? 'ogg' : contentType.includes('wav') ? 'wav' : contentType.includes('mp4') || contentType.includes('m4a') ? 'm4a' : 'mp3';
     return { buffer, contentType, filename: `episode.${ext}` };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function transcribeWithGroq(groqKey: string, episode: any) {
+  const inspected = await inspectAudioUrl(String(episode.audioUrl));
+  const form = new FormData();
+
+  // Small files are uploaded directly. Large podcast episodes are sent using the
+  // fully resolved enclosure URL. This avoids both the 25 MB attachment ceiling
+  // and the 301/302 redirect problem common in podcast feeds.
+  if (inspected.contentLength && inspected.contentLength <= DIRECT_UPLOAD_LIMIT) {
+    const audio = await downloadSmallAudio(inspected.finalUrl, inspected.contentType);
+    form.append('file', new Blob([audio.buffer], { type: audio.contentType }), audio.filename);
+  } else {
+    form.append('url', inspected.finalUrl);
+  }
+
+  form.append('model', 'whisper-large-v3-turbo');
+  form.append('language', 'fr');
+  form.append('response_format', 'verbose_json');
+  form.append('temperature', '0');
+  form.append('timestamp_granularities[]', 'segment');
+  form.append('prompt', `Transcription fidèle en français. Titre: ${episode.title || ''}. Podcast: ${episode.podcastName || ''}.`);
+
+  const groqResponse = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${groqKey}` },
+    body: form,
+  });
+
+  if (!groqResponse.ok) {
+    const detail = await groqResponse.text();
+    console.error('[Groq Whisper] failed', groqResponse.status, detail.slice(0, 600));
+    throw new Error(`Groq transcription failed: ${detail.slice(0, 260)}`);
+  }
+
+  return groqResponse.json();
 }
 
 export default async function handler(req: any, res: any) {
@@ -39,32 +115,7 @@ export default async function handler(req: any, res: any) {
     const episode = body.episode || {};
     if (!episode.id || !episode.audioUrl) return res.status(400).json({ error: 'Episode id and audioUrl are required.' });
 
-    // Podcast enclosure URLs frequently answer with 301/302 redirects. Groq's remote URL
-    // ingestion does not reliably follow those redirects, so ANKIU resolves/downloads the
-    // media server-side and uploads the actual audio bytes to Whisper.
-    const audio = await downloadAudio(String(episode.audioUrl));
-    const form = new FormData();
-    form.append('file', new Blob([audio.buffer], { type: audio.contentType }), audio.filename);
-    form.append('model', 'whisper-large-v3-turbo');
-    form.append('language', 'fr');
-    form.append('response_format', 'verbose_json');
-    form.append('temperature', '0');
-    form.append('timestamp_granularities[]', 'segment');
-    form.append('prompt', `Transcription fidèle en français. Titre: ${episode.title || ''}. Podcast: ${episode.podcastName || ''}.`);
-
-    const groqResponse = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${groqKey}` },
-      body: form,
-    });
-
-    if (!groqResponse.ok) {
-      const detail = await groqResponse.text();
-      console.error('[Groq Whisper] failed', groqResponse.status, detail.slice(0, 600));
-      return res.status(502).json({ error: 'Groq transcription failed.', detail: detail.slice(0, 300) });
-    }
-
-    const transcription = await groqResponse.json();
+    const transcription: any = await transcribeWithGroq(groqKey, episode);
     const transcript = String(transcription.text || '').trim();
     if (!transcript) return res.status(502).json({ error: 'Groq returned an empty transcript.' });
 
