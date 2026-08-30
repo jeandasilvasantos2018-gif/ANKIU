@@ -110,5 +110,39 @@ button { -webkit-tap-highlight-color: transparent; }
 .dark .ankiu-app-shell .dark\:text-blue-400 { color: #ff9caf !important; }
 .dark .ankiu-app-shell [class~="dark:bg-zinc-900/95"], .dark .ankiu-app-shell [class~="dark:bg-zinc-900/90"], .dark .ankiu-app-shell [class~="dark:bg-black/50"] { background-color: rgba(50, 37, 43, .94) !important; }
 .dark .ankiu-app-shell input, .dark .ankiu-app-shell select, .dark .ankiu-app-shell textarea { background-color: #382a30 !important; color: #fff8f5 !important; border-color: #5d444e !important; }
+
+/* Podcast study transcript: keep strong contrast in Android/iOS WebViews even when
+   the device forces dark mode and changes inherited button text colors. */
+.ankiu-podcast-transcript,
+.ankiu-podcast-transcript p,
+.ankiu-podcast-transcript button:not(.ankiu-podcast-timestamp) {
+  color: #3d2d34 !important;
+  -webkit-text-fill-color: #3d2d34 !important;
+  opacity: 1 !important;
+}
+.ankiu-podcast-transcript button:not(.ankiu-podcast-timestamp) {
+  background-color: transparent;
+}
+.ankiu-podcast-transcript button:not(.ankiu-podcast-timestamp):hover,
+.ankiu-podcast-transcript button:not(.ankiu-podcast-timestamp):focus {
+  color: #765fc7 !important;
+  -webkit-text-fill-color: #765fc7 !important;
+  background-color: #eee8ff;
+}
+.ankiu-podcast-transcript .ankiu-podcast-timestamp {
+  color: #765fc7 !important;
+  -webkit-text-fill-color: #765fc7 !important;
+}
+.dark .ankiu-podcast-transcript,
+.dark .ankiu-podcast-transcript p,
+.dark .ankiu-podcast-transcript button:not(.ankiu-podcast-timestamp) {
+  color: #fff8f5 !important;
+  -webkit-text-fill-color: #fff8f5 !important;
+}
+.dark .ankiu-podcast-transcript .ankiu-podcast-timestamp {
+  color: #c9b9ff !important;
+  -webkit-text-fill-color: #c9b9ff !important;
+}
+
 @keyframes ankiuFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
 @keyframes ankiuTwinkle { 0%, 100% { opacity: .45; transform: scale(.82) rotate(0deg); } 50% { opacity: 1; transform: scale(1.12) rotate(12deg); } }
