@@ -169,6 +169,13 @@ button { -webkit-tap-highlight-color: transparent; }
 .ankiu-app-shell [class*="from-blue-500/10"] {
   background-image: linear-gradient(135deg, rgba(184,169,238,.18), rgba(255,127,152,.12), rgba(255,197,168,.18)) !important;
 }
+.ankiu-app-shell [class*="from-blue-600"][class*="to-indigo-700"],
+.ankiu-app-shell [class*="from-blue-600"][class*="via-indigo-600"] {
+  background-image: linear-gradient(135deg, #f36a85 0%, #ff8f8e 52%, #b49be3 100%) !important;
+}
+.ankiu-app-shell [class*="from-emerald-500"][class*="to-teal-400"] {
+  background-image: linear-gradient(90deg, #79c49f, #9bd9ba) !important;
+}
 
 .ankiu-app-shell .rounded-xl { border-radius: 18px !important; }
 .ankiu-app-shell .rounded-2xl { border-radius: 24px !important; }
