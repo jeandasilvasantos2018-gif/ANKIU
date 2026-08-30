@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FlashCard, ReviewRating } from '../types';
 import { getIntervalPreview } from '../lib/sm2';
 import { playAudio, useVoicesReady } from '../lib/audio';
-import { Volume2, Star, ChevronDown, ChevronUp, Network, Sparkles, Snail } from 'lucide-react';
+import { Volume2, Star, ChevronDown, ChevronUp, Network, Sparkles, Snail, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface CardViewProps {
@@ -15,15 +15,7 @@ interface CardViewProps {
   onSelectWord?: (word: string) => void;
 }
 
-export const CardView: React.FC<CardViewProps> = ({
-  card,
-  isAnswerRevealed,
-  onRevealAnswer,
-  onRate,
-  onToggleFavorite,
-  onOpenExplorar,
-  onSelectWord,
-}) => {
+export const CardView: React.FC<CardViewProps> = ({ card, isAnswerRevealed, onRevealAnswer, onRate, onToggleFavorite, onOpenExplorar, onSelectWord }) => {
   const [showMore, setShowMore] = useState(false);
   const [isSlowAudio, setIsSlowAudio] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -31,316 +23,69 @@ export const CardView: React.FC<CardViewProps> = ({
 
   const handlePlayAudio = () => {
     setIsPlaying(true);
-    const speed = isSlowAudio ? 0.75 : 1.0;
-    playAudio(card.word, card.language, speed, () => setIsPlaying(false));
+    playAudio(card.word, card.language, isSlowAudio ? 0.75 : 1.0, () => setIsPlaying(false));
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto flex flex-col items-center justify-between min-h-[520px] p-6 bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 rounded-3xl shadow-sm transition-all duration-300 relative overflow-hidden">
-      {/* Top Bar: Favorite & Tags & Redes Semânticas Quick Button */}
-      <div className="w-full flex items-center justify-between pb-4 border-b border-zinc-100 dark:border-zinc-800/60">
+    <div className="w-full max-w-lg mx-auto flex flex-col items-center justify-between min-h-[520px] p-6 bg-[#fffdfb] dark:bg-[#382b31] border border-[#efd7d1] dark:border-[#5b444e] rounded-[34px] shadow-[0_24px_70px_rgba(116,65,80,.14)] transition-all duration-300 relative overflow-hidden">
+      <span className="absolute -right-16 -top-16 w-48 h-48 rounded-full bg-[#fff0f3] dark:bg-[#493039]" />
+      <span className="absolute right-8 top-8 text-[#ef9aae] ankiu-sparkle">✦</span>
+      <span className="absolute left-7 bottom-24 text-[#e9bd8b] text-xs ankiu-sparkle">✦</span>
+
+      <div className="relative z-10 w-full flex items-center justify-between pb-4 border-b border-[#f2ddd7] dark:border-[#58424c]">
         <div className="flex flex-wrap gap-1.5 items-center">
-          <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
-            {card.state}
-          </span>
-          {card.tags.map((tag, i) => (
-            <span
-              key={i}
-              className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-900/50"
-            >
-              {tag}
-            </span>
-          ))}
+          <span className="text-[10px] font-black px-2.5 py-1 rounded-full bg-[#fff5e8] dark:bg-[#42352f] text-[#b37d57] dark:text-[#e9b78e] border border-[#ffe1bd] dark:border-[#654d40]">{card.state}</span>
+          {card.tags.map((tag, i) => <span key={i} className="text-[9px] font-black px-2 py-1 rounded-full bg-[#fff0f3] dark:bg-[#493039] text-[#df5d78] dark:text-[#ff9caf] border border-[#ffd1da] dark:border-[#693c49]">{tag}</span>)}
         </div>
-
         <div className="flex items-center gap-1">
-          <button
-            onClick={onOpenExplorar}
-            className="p-2 rounded-xl text-zinc-500 hover:text-blue-600 dark:text-zinc-400 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors flex items-center gap-1 text-xs font-medium"
-            title="Abrir Modo Explorar (Rede Semântica)"
-          >
-            <Network className="w-4 h-4 text-blue-500" />
-            <span className="hidden sm:inline">Explorar</span>
-          </button>
-
-          <button
-            onClick={() => onToggleFavorite(card.id)}
-            className={`p-2 rounded-xl transition-colors ${
-              card.isFavorite
-                ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/50'
-                : 'text-zinc-400 hover:text-amber-500 hover:bg-zinc-100 dark:hover:bg-zinc-800'
-            }`}
-            title="Favorito"
-          >
-            <Star className={`w-5 h-5 ${card.isFavorite ? 'fill-amber-500' : ''}`} />
-          </button>
+          <button onClick={onOpenExplorar} className="p-2 rounded-2xl text-[#8874c9] bg-[#f3efff] dark:bg-[#403650] dark:text-[#cbbcf3] flex items-center gap-1 text-xs font-black" title="Abrir Rede Semântica"><Network className="w-4 h-4" /><span className="hidden sm:inline">Explorar</span></button>
+          <button onClick={() => onToggleFavorite(card.id)} className={`p-2 rounded-2xl transition-colors ${card.isFavorite ? 'text-[#e4a347] bg-[#fff5df] dark:bg-[#493a2c]' : 'text-[#c9a9b3] bg-[#fff8f5] dark:bg-[#403139]'}`} title="Favorito"><Star className={`w-5 h-5 ${card.isFavorite ? 'fill-current' : ''}`} /></button>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="w-full flex-1 flex flex-col items-center justify-center text-center py-6 gap-3">
-        {/* 1. Palavra (Fonte grande) */}
-        <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
-          {card.word}
-        </h1>
-
-        {/* 2. Audio button & Slow toggle & Pronunciation & Classe Gramatical */}
+      <div className="relative z-10 w-full flex-1 flex flex-col items-center justify-center text-center py-6 gap-3">
+        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.14em] text-[#aa8490]"><Sparkles className="w-3.5 h-3.5" /> Palavra do momento</div>
+        <h1 className="text-4xl sm:text-5xl font-black tracking-[-.05em] text-[#44323a] dark:text-[#fff8f5]">{card.word}</h1>
         <div className="flex items-center gap-2 justify-center flex-wrap my-1">
-          <button
-            disabled={!voicesReady}
-            onClick={handlePlayAudio}
-            className={`p-2.5 rounded-full transition-all flex items-center justify-center ${
-              !voicesReady
-                ? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-600 cursor-not-allowed opacity-60'
-                : isPlaying
-                ? 'bg-blue-600 text-white scale-110 shadow-md'
-                : 'bg-blue-50 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900'
-            }`}
-            title={voicesReady ? "Ouvir pronúncia" : "Carregando vozes do sistema..."}
-          >
-            <Volume2 className="w-5 h-5" />
-          </button>
+          <button disabled={!voicesReady} onClick={handlePlayAudio} className={`p-3 rounded-full transition-all flex items-center justify-center ${!voicesReady ? 'bg-[#f4e6e1] dark:bg-[#493840] text-[#bca0aa] cursor-not-allowed opacity-60' : isPlaying ? 'bg-gradient-to-br from-[#f36a85] to-[#ff9b87] text-white scale-110 shadow-[0_8px_20px_rgba(236,91,119,.25)]' : 'bg-[#fff0f3] dark:bg-[#493039] text-[#e25d78] dark:text-[#ff9caf] hover:scale-105'}`} title={voicesReady ? 'Ouvir pronúncia' : 'Carregando vozes...'}><Volume2 className="w-5 h-5" /></button>
+          <button onClick={() => setIsSlowAudio(!isSlowAudio)} className={`p-2 rounded-2xl text-xs font-black flex items-center gap-1 border transition-colors ${isSlowAudio ? 'bg-[#f3efff] text-[#7e69c5] dark:bg-[#403650] dark:text-[#cbbcf3] border-[#d9cff8] dark:border-[#5d4c73]' : 'bg-[#fff8f3] dark:bg-[#30242a] text-[#987b86] border-[#efd8d1] dark:border-[#57414a]'}`} title="Áudio lento"><Snail className="w-3.5 h-3.5" /><span>0.75x</span></button>
+          <span className="text-sm font-bold text-[#987b86] dark:text-[#c8b1b9] italic">{card.partOfSpeech}</span>
+          {card.pronunciation && <span className="text-xs text-[#b3969f] dark:text-[#ae949d] font-mono">{card.pronunciation}</span>}
+        </div>
+        <div className="text-2xl font-black text-[#e25d78] dark:text-[#ff9caf] mt-1">{card.translation}</div>
+        <p className="text-sm text-[#765d67] dark:text-[#d5c0c7] max-w-md font-medium leading-relaxed px-2">{card.definition}</p>
 
-          <button
-            onClick={() => setIsSlowAudio(!isSlowAudio)}
-            className={`p-1.5 rounded-lg text-xs font-medium flex items-center gap-1 border transition-colors ${
-              isSlowAudio
-                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 border-blue-300'
-                : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-500 border-zinc-200 dark:border-zinc-700'
-            }`}
-            title="Modo áudio lento"
-          >
-            <Snail className="w-3.5 h-3.5" />
-            <span>0.75x</span>
-          </button>
-
-          <span className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 italic">
-            {card.partOfSpeech}
-          </span>
-          {card.pronunciation && (
-            <span className="text-xs text-zinc-400 dark:text-zinc-500 font-mono">
-              {card.pronunciation}
-            </span>
-          )}
+        <div className="mt-3 p-4 rounded-[24px] bg-[#fff5e8] dark:bg-[#42352f] border border-[#ffe1bd] dark:border-[#654d40] w-full text-left flex flex-col gap-1.5 relative overflow-hidden">
+          <Heart className="absolute right-3 top-3 w-3.5 h-3.5 text-[#e9a974] opacity-50" />
+          <p className="text-base font-black text-[#503c34] dark:text-[#ffe8d8]">“{card.example}”</p>
+          <p className="text-xs text-[#9a7968] dark:text-[#d1aa91]">{card.exampleTranslation}</p>
         </div>
 
-        {/* 3. Tradução */}
-        <div className="text-2xl font-bold text-blue-600 dark:text-blue-400 mt-1">
-          {card.translation}
-        </div>
-
-        {/* 4. Definição simples em inglês */}
-        <p className="text-sm text-zinc-600 dark:text-zinc-300 max-w-md font-medium leading-relaxed px-2">
-          {card.definition}
-        </p>
-
-        {/* 5. Frase & 6. Tradução da frase */}
-        <div className="mt-3 p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-zinc-700/60 w-full text-left flex flex-col gap-1.5">
-          <p className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-            "{card.example}"
-          </p>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            {card.exampleTranslation}
-          </p>
-        </div>
-
-        {/* Mostrar Mais (Expandable details) */}
         <div className="w-full mt-2">
-          <button
-            onClick={() => setShowMore(!showMore)}
-            className="w-full py-2 flex items-center justify-center gap-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors"
-          >
-            <span>{showMore ? 'Mostrar Menos' : 'Mostrar Mais (Expressões, Sinônimos & Família)'}</span>
-            {showMore ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-          </button>
-
+          <button onClick={() => setShowMore(!showMore)} className="w-full py-2 flex items-center justify-center gap-1.5 text-xs font-black text-[#987b86] dark:text-[#c8b1b9] transition-colors"><span>{showMore ? 'Mostrar Menos' : 'Mostrar Mais • conexões e família'}</span>{showMore ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}</button>
           <AnimatePresence>
             {showMore && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden text-left flex flex-col gap-3 pt-3 border-t border-zinc-100 dark:border-zinc-800"
-              >
-                {/* Expressões & Phrasal Verbs */}
-                {card.expressions.length > 0 && (
-                  <div>
-                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
-                      Expressões / Phrasal Verbs
-                    </h4>
-                    <div className="flex flex-wrap gap-1.5">
-                      {card.expressions.map((exp, i) => (
-                        <span
-                          key={i}
-                          onClick={() => onSelectWord && onSelectWord(exp)}
-                          className="text-xs px-2.5 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/50 dark:border-indigo-900/50 cursor-pointer hover:underline"
-                        >
-                          {exp}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Colocações */}
-                {card.collocations.length > 0 && (
-                  <div>
-                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
-                      Colocações Comuns
-                    </h4>
-                    <div className="flex flex-wrap gap-1.5">
-                      {card.collocations.map((col, i) => (
-                        <span
-                          key={i}
-                          className="text-xs px-2.5 py-1 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/50 dark:border-amber-900/50"
-                        >
-                          {col}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Sinônimos & Antônimos */}
-                {(card.synonyms.length > 0 || card.antonyms.length > 0) && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {card.synonyms.length > 0 && (
-                      <div>
-                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
-                          Sinônimos
-                        </h4>
-                        <div className="flex flex-wrap gap-1">
-                          {card.synonyms.map((syn, i) => (
-                            <span
-                              key={i}
-                              className="text-xs text-blue-600 dark:text-blue-400 font-medium"
-                            >
-                              {syn}{i < card.synonyms.length - 1 ? ',' : ''}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {card.antonyms.length > 0 && (
-                      <div>
-                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
-                          Antônimos
-                        </h4>
-                        <div className="flex flex-wrap gap-1">
-                          {card.antonyms.map((ant, i) => (
-                            <span
-                              key={i}
-                              className="text-xs text-rose-600 dark:text-rose-400 font-medium"
-                            >
-                              {ant}{i < card.antonyms.length - 1 ? ',' : ''}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Família da palavra */}
-                {card.family.length > 0 && (
-                  <div>
-                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1 flex items-center gap-1">
-                      <span>Família da Palavra</span>
-                      <span className="text-[10px] font-normal text-emerald-600 dark:text-emerald-400">(toque para ouvir)</span>
-                    </h4>
-                    <div className="flex flex-wrap gap-1.5">
-                      {card.family.map((fam, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          disabled={!voicesReady}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            playAudio(fam, card.language || 'fr');
-                          }}
-                          className={`text-xs px-2.5 py-1 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/50 dark:border-emerald-900/50 hover:bg-emerald-100 dark:hover:bg-emerald-900/80 transition-all flex items-center gap-1.5 font-medium group active:scale-95 ${!voicesReady ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                          title={voicesReady ? `Ouvir pronúncia de "${fam}"` : "Aguardando vozes..."}
-                        >
-                          <Volume2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform shrink-0" />
-                          <span>{fam}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* User Notes */}
-                {card.notes && (
-                  <div>
-                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1">
-                      Notas Pessoais
-                    </h4>
-                    <p className="text-xs text-zinc-600 dark:text-zinc-300 italic bg-zinc-50 dark:bg-zinc-800 p-2 rounded-xl">
-                      {card.notes}
-                    </p>
-                  </div>
-                )}
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden text-left flex flex-col gap-3 pt-3 border-t border-[#f1ddd7] dark:border-[#57414a]">
+                {card.expressions.length > 0 && <div><h4 className="text-[10px] font-black uppercase tracking-[.12em] text-[#a4868f] mb-1.5">Expressões / Phrasal Verbs</h4><div className="flex flex-wrap gap-1.5">{card.expressions.map((exp, i) => <span key={i} onClick={() => onSelectWord && onSelectWord(exp)} className="text-xs px-2.5 py-1.5 rounded-2xl bg-[#f3efff] dark:bg-[#403650] text-[#7e69c5] dark:text-[#cbbcf3] border border-[#d9cff8] dark:border-[#5d4c73] cursor-pointer hover:underline">{exp}</span>)}</div></div>}
+                {card.collocations.length > 0 && <div><h4 className="text-[10px] font-black uppercase tracking-[.12em] text-[#a4868f] mb-1.5">Colocações Comuns</h4><div className="flex flex-wrap gap-1.5">{card.collocations.map((col, i) => <span key={i} className="text-xs px-2.5 py-1.5 rounded-2xl bg-[#fff5df] dark:bg-[#493a2c] text-[#c88938] dark:text-[#f3c980] border border-[#f5d89d] dark:border-[#69513b]">{col}</span>)}</div></div>}
+                {(card.synonyms.length > 0 || card.antonyms.length > 0) && <div className="grid grid-cols-2 gap-2">{card.synonyms.length > 0 && <div><h4 className="text-[10px] font-black uppercase tracking-[.12em] text-[#a4868f] mb-1">Sinônimos</h4><div className="flex flex-wrap gap-1">{card.synonyms.map((syn, i) => <span key={i} className="text-xs text-[#e25d78] dark:text-[#ff9caf] font-bold">{syn}{i < card.synonyms.length - 1 ? ',' : ''}</span>)}</div></div>}{card.antonyms.length > 0 && <div><h4 className="text-[10px] font-black uppercase tracking-[.12em] text-[#a4868f] mb-1">Antônimos</h4><div className="flex flex-wrap gap-1">{card.antonyms.map((ant, i) => <span key={i} className="text-xs text-[#c45b64] dark:text-[#ff9da7] font-bold">{ant}{i < card.antonyms.length - 1 ? ',' : ''}</span>)}</div></div>}</div>}
+                {card.family.length > 0 && <div><h4 className="text-[10px] font-black uppercase tracking-[.12em] text-[#a4868f] mb-1.5">Família da Palavra <span className="normal-case tracking-normal text-[#58a47f]">• toque para ouvir</span></h4><div className="flex flex-wrap gap-1.5">{card.family.map((fam, i) => <button key={i} type="button" disabled={!voicesReady} onClick={(e) => { e.stopPropagation(); playAudio(fam, card.language || 'fr'); }} className={`text-xs px-2.5 py-1.5 rounded-2xl bg-[#eef9f3] dark:bg-[#2f4138] text-[#519878] dark:text-[#a5dec1] border border-[#ccebdc] dark:border-[#436052] flex items-center gap-1.5 font-bold active:scale-95 ${!voicesReady ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}><Volume2 className="w-3.5 h-3.5" /><span>{fam}</span></button>)}</div></div>}
+                {card.notes && <div><h4 className="text-[10px] font-black uppercase tracking-[.12em] text-[#a4868f] mb-1">Notas Pessoais</h4><p className="text-xs text-[#765d67] dark:text-[#d5c0c7] italic bg-[#fff8f3] dark:bg-[#30242a] p-3 rounded-2xl">{card.notes}</p></div>}
               </motion.div>
             )}
           </AnimatePresence>
         </div>
       </div>
 
-      {/* Footer Controls: Reveal Answer OR Rating Buttons */}
-      <div className="w-full pt-4 border-t border-zinc-100 dark:border-zinc-800/80">
+      <div className="relative z-10 w-full pt-4 border-t border-[#f1ddd7] dark:border-[#57414a]">
         {!isAnswerRevealed ? (
-          <button
-            onClick={onRevealAnswer}
-            className="w-full py-3.5 px-6 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-semibold text-base transition-all shadow-md shadow-blue-500/20 flex items-center justify-center gap-2"
-          >
-            <span>Mostrar Resposta</span>
-          </button>
+          <button onClick={onRevealAnswer} className="w-full py-3.5 px-6 rounded-[22px] bg-gradient-to-r from-[#f36a85] to-[#ff9b87] active:scale-[.99] text-white font-black text-base transition-all shadow-[0_9px_22px_rgba(236,91,119,.20)]">Mostrar Resposta</button>
         ) : (
           <div className="grid grid-cols-4 gap-2">
-            {/* Again */}
-            <button
-              onClick={() => onRate('again')}
-              className="flex flex-col items-center justify-center p-2.5 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/50 active:scale-95 transition-all"
-            >
-              <span className="text-xs font-extrabold uppercase">Again</span>
-              <span className="text-[10px] opacity-80 mt-0.5">
-                {getIntervalPreview(card, 'again')}
-              </span>
-            </button>
-
-            {/* Hard */}
-            <button
-              onClick={() => onRate('hard')}
-              className="flex flex-col items-center justify-center p-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100/60 dark:bg-zinc-800/60 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 active:scale-95 transition-all"
-            >
-              <span className="text-xs font-extrabold uppercase">Hard</span>
-              <span className="text-[10px] opacity-80 mt-0.5">
-                {getIntervalPreview(card, 'hard')}
-              </span>
-            </button>
-
-            {/* Good */}
-            <button
-              onClick={() => onRate('good')}
-              className="flex flex-col items-center justify-center p-2.5 rounded-2xl bg-blue-600 text-white hover:bg-blue-700 active:scale-95 transition-all shadow-sm"
-            >
-              <span className="text-xs font-extrabold uppercase">Good</span>
-              <span className="text-[10px] opacity-90 mt-0.5">
-                {getIntervalPreview(card, 'good')}
-              </span>
-            </button>
-
-            {/* Easy */}
-            <button
-              onClick={() => onRate('easy')}
-              className="flex flex-col items-center justify-center p-2.5 rounded-2xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 active:scale-95 transition-all"
-            >
-              <span className="text-xs font-extrabold uppercase">Easy</span>
-              <span className="text-[10px] opacity-80 mt-0.5">
-                {getIntervalPreview(card, 'easy')}
-              </span>
-            </button>
+            <button onClick={() => onRate('again')} className="flex flex-col items-center justify-center p-2.5 rounded-[20px] border border-[#ffd2d2] dark:border-[#6d4146] bg-[#fff0f0] dark:bg-[#493033] text-[#c45b64] dark:text-[#ffadb6] active:scale-95 transition-all"><span className="text-xs font-black uppercase">Again</span><span className="text-[10px] opacity-80 mt-0.5">{getIntervalPreview(card, 'again')}</span></button>
+            <button onClick={() => onRate('hard')} className="flex flex-col items-center justify-center p-2.5 rounded-[20px] border border-[#ead8d5] dark:border-[#5b444e] bg-[#fff8f3] dark:bg-[#30242a] text-[#765d67] dark:text-[#d4bcc4] active:scale-95 transition-all"><span className="text-xs font-black uppercase">Hard</span><span className="text-[10px] opacity-80 mt-0.5">{getIntervalPreview(card, 'hard')}</span></button>
+            <button onClick={() => onRate('good')} className="flex flex-col items-center justify-center p-2.5 rounded-[20px] bg-gradient-to-br from-[#f36a85] to-[#ff9b87] text-white active:scale-95 transition-all shadow-sm"><span className="text-xs font-black uppercase">Good</span><span className="text-[10px] opacity-90 mt-0.5">{getIntervalPreview(card, 'good')}</span></button>
+            <button onClick={() => onRate('easy')} className="flex flex-col items-center justify-center p-2.5 rounded-[20px] border border-[#ccebdc] dark:border-[#436052] bg-[#eef9f3] dark:bg-[#2f4138] text-[#519878] dark:text-[#a5dec1] active:scale-95 transition-all"><span className="text-xs font-black uppercase">Easy</span><span className="text-[10px] opacity-80 mt-0.5">{getIntervalPreview(card, 'easy')}</span></button>
           </div>
         )}
       </div>
