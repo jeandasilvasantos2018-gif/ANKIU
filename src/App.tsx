@@ -61,7 +61,7 @@ export default function App() {
         {activeTab === 'decks' && <DecksTab decks={decks} cards={cards} onSelectDeckToStudy={(deck) => handleStartStudy(deck)} onOpenAddCardModal={(deckId) => handleOpenAddCardModal(deckId)} onCreateDeck={handleCreateDeck} onRefreshAll={refreshAllState} />}
         {activeTab === 'fill_blank' && <FillBlankView cards={cards} decks={decks} onOpenCardDetail={(card) => { setSessionCards([card]); setIsStudying(true); }} />}
         {activeTab === 'challenge' && <ChallengeTab cards={cards} />}
-        {activeTab === 'podcasts' && <PodcastsTab />}
+        {activeTab === 'podcasts' && <PodcastsTab onAddWordCard={(word) => handleOpenAddCardModal(undefined, word)} />}
         {activeTab === 'search' && <SearchTab cards={cards} onOpenCardDetail={(card) => { setSessionCards([card]); setIsStudying(true); }} onOpenExplorar={(card) => setExplorarCard(card)} onToggleFavorite={handleToggleFavoriteCard} />}
         {activeTab === 'stats' && <StatsTab stats={stats} cards={cards} />}
         {activeTab === 'settings' && <SettingsTab settings={settings} onUpdateSettings={handleUpdateSettings} onRefreshAll={refreshAllState} />}
