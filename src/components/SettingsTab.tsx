@@ -1,13 +1,7 @@
 import React, { useRef } from 'react';
 import { UserSettings } from '../types';
-import {
-  exportAppDataJSON,
-  importAppDataJSON,
-  importDeckJSON,
-  importDeckCSV,
-  resetAppData,
-} from '../lib/storage';
-import { Sun, Moon, Volume2, Sparkles, Download, Upload, RotateCcw, ShieldCheck, FileText } from 'lucide-react';
+import { exportAppDataJSON, importAppDataJSON, importDeckJSON, importDeckCSV, resetAppData } from '../lib/storage';
+import { Sparkles, Download, Upload, RotateCcw, Palette, Volume2, Database, MoonStar } from 'lucide-react';
 
 interface SettingsTabProps {
   settings: UserSettings;
@@ -15,11 +9,7 @@ interface SettingsTabProps {
   onRefreshAll: () => void;
 }
 
-export const SettingsTab: React.FC<SettingsTabProps> = ({
-  settings,
-  onUpdateSettings,
-  onRefreshAll,
-}) => {
+export const SettingsTab: React.FC<SettingsTabProps> = ({ settings, onUpdateSettings, onRefreshAll }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleExport = () => {
@@ -33,28 +23,22 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
     URL.revokeObjectURL(url);
   };
 
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
+  const handleImportClick = () => fileInputRef.current?.click();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
       const content = event.target?.result as string;
       if (!content) return;
-
       if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
         const deckTitle = file.name.replace(/\.[^/.]+$/, '');
         const res = importDeckCSV(deckTitle, content);
         if (res.success && res.importedCardsCount > 0) {
           alert(`Baralho "${res.deckName}" importado/atualizado com ${res.importedCardsCount} palavras!`);
           onRefreshAll();
-        } else {
-          alert('Erro ao importar arquivo CSV.');
-        }
+        } else alert('Erro ao importar arquivo CSV.');
       } else {
         const deckRes = importDeckJSON(content);
         if (deckRes.success) {
@@ -62,12 +46,8 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           onRefreshAll();
         } else {
           const success = importAppDataJSON(content);
-          if (success) {
-            alert('Dados de backup importados com sucesso!');
-            onRefreshAll();
-          } else {
-            alert('Erro ao importar arquivo. Verifique o formato do JSON ou CSV.');
-          }
+          if (success) { alert('Dados de backup importados com sucesso!'); onRefreshAll(); }
+          else alert('Erro ao importar arquivo. Verifique o formato do JSON ou CSV.');
         }
       }
     };
@@ -77,161 +57,61 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
 
   const handleReset = () => {
     if (confirm('Tem certeza de que deseja restaurar os dados iniciais? Seu progresso atual será substituído.')) {
-      resetAppData();
-      onRefreshAll();
-      alert('Dados restaurados para o estado padrão com sucesso.');
+      resetAppData(); onRefreshAll(); alert('Dados restaurados para o estado padrão com sucesso.');
     }
   };
 
+  const SectionTitle = ({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) => (
+    <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[.14em] text-[#a77f8b] dark:text-[#d4acb8]">{icon}{children}</div>
+  );
+
   return (
-    <div className="w-full max-w-md mx-auto px-4 pt-8 pb-28 flex flex-col gap-6">
-      {/* Header */}
-      <h1 className="text-3xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight">
-        Configurações
-      </h1>
+    <div className="w-full max-w-md mx-auto px-4 pt-7 pb-32 flex flex-col gap-5">
+      <header className="rounded-[30px] ankiu-surface px-5 py-5 relative overflow-hidden">
+        <span className="absolute right-5 top-4 text-[#f19caf] ankiu-sparkle">✦</span>
+        <SectionTitle icon={<MoonStar className="w-3.5 h-3.5" />}>Seu cantinho</SectionTitle>
+        <h1 className="mt-1 text-3xl font-black text-[#3d2d34] dark:text-[#fff7f3] tracking-[-.04em]">Configurações</h1>
+        <p className="mt-1 text-sm text-[#957b84] dark:text-[#c9b3bb]">Deixe o ANKIU com a sua cara ♡</p>
+      </header>
 
-      {/* Theme Section */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-3xl p-5 shadow-xs flex flex-col gap-3">
-        <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-          Aparência e Tema
-        </span>
-
+      <section className="rounded-[30px] ankiu-surface p-5 flex flex-col gap-4">
+        <SectionTitle icon={<Palette className="w-4 h-4 text-[#e46d85]" />}>Aparência e tema</SectionTitle>
         <div className="grid grid-cols-3 gap-2">
           {(['light', 'dark', 'system'] as const).map((t) => {
-            const isActive = settings.theme === t;
             const labels = { light: 'Claro', dark: 'Escuro', system: 'Sistema' };
-            return (
-              <button
-                key={t}
-                onClick={() => onUpdateSettings({ ...settings, theme: t })}
-                className={`py-3 px-3 rounded-2xl border text-xs font-bold transition-all ${
-                  isActive
-                    ? 'bg-blue-600 text-white border-transparent shadow-xs'
-                    : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700'
-                }`}
-              >
-                {labels[t]}
-              </button>
-            );
+            const isActive = settings.theme === t;
+            return <button key={t} onClick={() => onUpdateSettings({ ...settings, theme: t })} className={`py-3 px-3 rounded-[20px] border text-xs font-black transition-all ${isActive ? 'bg-gradient-to-br from-[#f36a85] to-[#ff9b87] text-white border-transparent shadow-[0_8px_20px_rgba(236,91,119,.18)]' : 'bg-[#fff7f3] dark:bg-[#403038] text-[#80646f] dark:text-[#d9c1c9] border-[#efd7d1] dark:border-[#5b444e]'}`}>{labels[t]}</button>;
           })}
         </div>
-      </div>
+      </section>
 
-      {/* Audio & AI Section */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-3xl p-5 shadow-xs flex flex-col gap-4">
-        <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-          Áudio & Inteligência Artificial
-        </span>
-
-        {/* Audio Speed */}
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200">
-              Velocidade Padrão do Áudio
-            </span>
-            <span className="text-xs text-zinc-400">
-              Velocidade de pronúncia da voz
-            </span>
-          </div>
-
-          <div className="flex gap-1">
-            <button
-              onClick={() => onUpdateSettings({ ...settings, audioSpeed: 1.0 })}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold ${
-                settings.audioSpeed === 1.0
-                  ? 'bg-blue-600 text-white border-transparent'
-                  : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700'
-              }`}
-            >
-              1.0x
-            </button>
-
-            <button
-              onClick={() => onUpdateSettings({ ...settings, audioSpeed: 0.75 })}
-              className={`px-3 py-1.5 rounded-xl border text-xs font-bold ${
-                settings.audioSpeed === 0.75
-                  ? 'bg-blue-600 text-white border-transparent'
-                  : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700'
-              }`}
-            >
-              0.75x Lento
-            </button>
+      <section className="rounded-[30px] ankiu-surface p-5 flex flex-col gap-4">
+        <SectionTitle icon={<Volume2 className="w-4 h-4 text-[#d99063]" />}>Áudio & IA</SectionTitle>
+        <div className="flex items-center justify-between gap-4">
+          <div><div className="text-sm font-black text-[#4b373f] dark:text-[#fff7f3]">Velocidade do áudio</div><div className="text-xs text-[#9c818a] dark:text-[#c5afb7]">Escolha o ritmo da pronúncia</div></div>
+          <div className="flex gap-1.5">
+            {[1, .75].map((speed) => <button key={speed} onClick={() => onUpdateSettings({ ...settings, audioSpeed: speed })} className={`px-3 py-2 rounded-2xl border text-xs font-black ${settings.audioSpeed === speed ? 'bg-[#fff0f3] text-[#e25d78] border-[#ffcbd6]' : 'bg-[#fffaf7] dark:bg-[#403038] text-[#8b7079] dark:text-[#ccb5bd] border-[#efd7d1] dark:border-[#5b444e]'}`}>{speed === 1 ? '1.0x' : '0.75x'}</button>)}
           </div>
         </div>
-
-        {/* Enable AI Toggle */}
-        <div className="flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 pt-3">
-          <div className="flex flex-col">
-            <span className="text-sm font-bold text-zinc-800 dark:text-zinc-200 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-blue-500" />
-              IA Assistente (Gemini)
-            </span>
-            <span className="text-xs text-zinc-400">
-              Gerar exemplos e expansões semânticas automáticas
-            </span>
+        <div className="h-px bg-[#f4dfd9] dark:bg-[#5a414a]" />
+        <label className="flex items-center justify-between gap-4 cursor-pointer">
+          <div><div className="text-sm font-black text-[#4b373f] dark:text-[#fff7f3] flex items-center gap-2"><Sparkles className="w-4 h-4 text-[#8a77cb]" /> IA Assistente (Gemini)</div><div className="text-xs text-[#9c818a] dark:text-[#c5afb7]">Gera exemplos e conexões automaticamente</div></div>
+          <div className={`relative w-12 h-7 rounded-full transition-colors ${settings.enableAi ? 'bg-[#f17088]' : 'bg-[#ead8d5] dark:bg-[#5a464e]'}`}>
+            <input type="checkbox" checked={settings.enableAi} onChange={(e) => onUpdateSettings({ ...settings, enableAi: e.target.checked })} className="sr-only" />
+            <span className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-all ${settings.enableAi ? 'left-6' : 'left-1'}`} />
           </div>
+        </label>
+      </section>
 
-          <input
-            type="checkbox"
-            checked={settings.enableAi}
-            onChange={(e) => onUpdateSettings({ ...settings, enableAi: e.target.checked })}
-            className="w-5 h-5 rounded-md accent-blue-600 cursor-pointer"
-          />
+      <section className="rounded-[30px] ankiu-surface p-5 flex flex-col gap-4">
+        <SectionTitle icon={<Database className="w-4 h-4 text-[#63aa86]" />}>Backup & dados</SectionTitle>
+        <div className="flex flex-col gap-2.5">
+          <button onClick={handleExport} className="p-4 rounded-[22px] bg-[#fff5e8] dark:bg-[#42352f] border border-[#ffe0b8] dark:border-[#654d40] text-[#5b4338] dark:text-[#ffe7d7] text-xs font-black flex items-center justify-between transition-transform hover:-translate-y-0.5"><span className="flex items-center gap-2"><Download className="w-4 h-4 text-[#d78b57]" />Exportar Backup</span><span className="text-[10px] text-[#b38974] font-bold">JSON</span></button>
+          <button onClick={handleImportClick} className="p-4 rounded-[22px] bg-[#f3efff] dark:bg-[#403650] border border-[#ddd3ff] dark:border-[#5d4c73] text-[#514369] dark:text-[#e5dcff] text-xs font-black flex items-center justify-between transition-transform hover:-translate-y-0.5"><span className="flex items-center gap-2"><Upload className="w-4 h-4 text-[#8b75c8]" />Importar Baralho / Backup</span><span className="text-[10px] text-[#9c8bbc] font-bold">JSON / CSV</span></button>
+          <input ref={fileInputRef} type="file" accept=".json,.csv,.txt" onChange={handleFileChange} className="hidden" />
+          <button onClick={handleReset} className="p-4 rounded-[22px] bg-[#fff0f0] dark:bg-[#493033] border border-[#ffd3d3] dark:border-[#6d4146] text-[#b84f5b] dark:text-[#ffafb7] text-xs font-black flex items-center justify-between transition-transform hover:-translate-y-0.5"><span className="flex items-center gap-2"><RotateCcw className="w-4 h-4" />Restaurar dados iniciais</span><span className="text-[10px] opacity-70">RESET</span></button>
         </div>
-      </div>
-
-      {/* Backup, Import & Export */}
-      <div className="bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-3xl p-5 shadow-xs flex flex-col gap-3">
-        <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-          Backup & Dados
-        </span>
-
-        <div className="flex flex-col gap-2">
-          {/* Export JSON */}
-          <button
-            onClick={handleExport}
-            className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/80 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-bold flex items-center justify-between transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Download className="w-4 h-4 text-blue-500" />
-              <span>Exportar Backup (JSON)</span>
-            </div>
-            <span className="text-[10px] text-zinc-400 font-normal">Baixar arquivo</span>
-          </button>
-
-          {/* Import JSON / CSV */}
-          <button
-            onClick={handleImportClick}
-            className="p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/80 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-bold flex items-center justify-between transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Upload className="w-4 h-4 text-indigo-500" />
-              <span>Importar Baralho / Backup (JSON / CSV)</span>
-            </div>
-            <span className="text-[10px] text-zinc-400 font-normal">Carregar arquivo</span>
-          </button>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json,.csv,.txt"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-
-          {/* Reset */}
-          <button
-            onClick={handleReset}
-            className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-bold flex items-center justify-between transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <RotateCcw className="w-4 h-4 text-rose-500" />
-              <span>Restaurar Dados Iniciais</span>
-            </div>
-            <span className="text-[10px] text-rose-400 font-normal">Resetar</span>
-          </button>
-        </div>
-      </div>
+      </section>
     </div>
   );
 };
