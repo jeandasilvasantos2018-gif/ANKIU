@@ -78,9 +78,7 @@ button { -webkit-tap-highlight-color: transparent; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Warm compatibility layer for legacy Tailwind screens. This keeps behavior intact while
-   moving Decks, Search, Stats, Settings, Practice, Challenge and study overlays onto the
-   same visual language as the redesigned Home screen. */
+/* Warm compatibility layer for existing screens. */
 .ankiu-app-shell .bg-white { background-color: rgba(255, 253, 251, .94) !important; }
 .ankiu-app-shell .bg-zinc-50 { background-color: #fff8f3 !important; }
 .ankiu-app-shell .bg-zinc-100 { background-color: #fff1ea !important; }
@@ -88,6 +86,20 @@ button { -webkit-tap-highlight-color: transparent; }
 .ankiu-app-shell .bg-zinc-900 { background-color: #3a2c32 !important; }
 .ankiu-app-shell .bg-zinc-950 { background-color: #251c20 !important; }
 .ankiu-app-shell .bg-black { background-color: #241b20 !important; }
+.ankiu-app-shell [class~="bg-white/95"],
+.ankiu-app-shell [class~="bg-white/90"],
+.ankiu-app-shell [class~="bg-white/80"],
+.ankiu-app-shell [class~="bg-white/50"] { background-color: rgba(255, 253, 251, .90) !important; }
+.ankiu-app-shell [class~="bg-zinc-50/95"],
+.ankiu-app-shell [class~="bg-zinc-50/90"],
+.ankiu-app-shell [class~="bg-zinc-50/50"] { background-color: rgba(255, 248, 243, .94) !important; }
+.ankiu-app-shell [class~="bg-zinc-900/95"],
+.ankiu-app-shell [class~="bg-zinc-900/90"],
+.ankiu-app-shell [class~="bg-zinc-900/50"] { background-color: rgba(58, 44, 50, .92) !important; }
+.ankiu-app-shell [class~="bg-black/90"],
+.ankiu-app-shell [class~="bg-black/80"],
+.ankiu-app-shell [class~="bg-black/60"],
+.ankiu-app-shell [class~="bg-black/50"] { background-color: rgba(47, 34, 40, .74) !important; }
 
 .ankiu-app-shell .text-zinc-950,
 .ankiu-app-shell .text-zinc-900 { color: #3d2d34 !important; }
@@ -111,6 +123,9 @@ button { -webkit-tap-highlight-color: transparent; }
 .ankiu-app-shell .border-blue-600 { border-color: #f2768d !important; }
 .ankiu-app-shell .bg-blue-50 { background-color: #fff0f3 !important; }
 .ankiu-app-shell .bg-blue-100 { background-color: #ffe1e7 !important; }
+.ankiu-app-shell [class~="bg-blue-50/30"],
+.ankiu-app-shell [class~="bg-blue-50/40"],
+.ankiu-app-shell [class~="bg-blue-50/50"] { background-color: rgba(255, 240, 243, .72) !important; }
 
 .ankiu-app-shell .bg-indigo-50 { background-color: #f5f1ff !important; }
 .ankiu-app-shell .bg-indigo-500,
@@ -146,6 +161,14 @@ button { -webkit-tap-highlight-color: transparent; }
 .ankiu-app-shell .bg-red-600 { background-color: #ee7c82 !important; }
 .ankiu-app-shell .text-red-600,
 .ankiu-app-shell .text-red-700 { color: #d95e68 !important; }
+
+.ankiu-app-shell [class*="from-blue-50"][class*="to-indigo-50"] {
+  background-image: linear-gradient(135deg, #fff0f3, #f3efff) !important;
+}
+.ankiu-app-shell [class*="from-indigo-500/10"],
+.ankiu-app-shell [class*="from-blue-500/10"] {
+  background-image: linear-gradient(135deg, rgba(184,169,238,.18), rgba(255,127,152,.12), rgba(255,197,168,.18)) !important;
+}
 
 .ankiu-app-shell .rounded-xl { border-radius: 18px !important; }
 .ankiu-app-shell .rounded-2xl { border-radius: 24px !important; }
@@ -183,6 +206,9 @@ button { -webkit-tap-highlight-color: transparent; }
 .dark .ankiu-app-shell .dark\:bg-blue-950\/50,
 .dark .ankiu-app-shell .dark\:bg-blue-950\/60 { background-color: rgba(91, 49, 62, .66) !important; }
 .dark .ankiu-app-shell .dark\:text-blue-400 { color: #ff9caf !important; }
+.dark .ankiu-app-shell [class~="dark:bg-zinc-900/95"],
+.dark .ankiu-app-shell [class~="dark:bg-zinc-900/90"],
+.dark .ankiu-app-shell [class~="dark:bg-black/50"] { background-color: rgba(50, 37, 43, .94) !important; }
 .dark .ankiu-app-shell input,
 .dark .ankiu-app-shell select,
 .dark .ankiu-app-shell textarea {
