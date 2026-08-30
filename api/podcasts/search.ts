@@ -11,8 +11,6 @@ export default async function handler(req: any, res: any) {
 
   try {
     const rawTerm = String(req.query?.q || '').trim();
-    // Taddy's current search schema is most reliable with a search term + content type.
-    // French discovery is biased by the default query; educational classification happens later with Gemini.
     const term = rawTerm || 'français facile';
     const page = Math.min(20, Math.max(1, Number(req.query?.page || 1)));
     const limit = Math.min(25, Math.max(1, Number(req.query?.limit || 18)));
@@ -24,6 +22,8 @@ export default async function handler(req: any, res: any) {
           page: $page,
           limitPerPage: $limit,
           filterForTypes: PODCASTEPISODE,
+          filterForLanguages: FRENCH,
+          filterForPodcastContentType: AUDIO,
           sortBy: POPULARITY,
           matchBy: MOST_TERMS,
           isSafeMode: true
@@ -39,7 +39,12 @@ export default async function handler(req: any, res: any) {
             datePublished
             websiteUrl
             isExplicitContent
-            podcastSeries { uuid name imageUrl }
+            podcastSeries {
+              uuid
+              name
+              imageUrl
+              language
+            }
           }
         }
       }
@@ -66,20 +71,23 @@ export default async function handler(req: any, res: any) {
     }
 
     const items = payload?.data?.search?.podcastEpisodes || [];
-    const episodes = items.filter((item: any) => item?.uuid && item?.audioUrl).map((item: any) => ({
-      id: item.uuid,
-      title: cleanHtml(item.name || 'Episode'),
-      description: cleanHtml(item.description || ''),
-      podcastName: cleanHtml(item.podcastSeries?.name || 'Podcast'),
-      audioUrl: item.audioUrl,
-      imageUrl: item.imageUrl || item.podcastSeries?.imageUrl,
-      duration: Number(item.duration || 0) || undefined,
-      sourceUrl: item.websiteUrl || undefined,
-      publishedAt: item.datePublished ? new Date(Number(item.datePublished) * 1000).toISOString() : undefined,
-      explicit: Boolean(item.isExplicitContent),
-    }));
+    const episodes = items
+      .filter((item: any) => item?.uuid && item?.audioUrl && item?.podcastSeries?.language === 'FRENCH')
+      .map((item: any) => ({
+        id: item.uuid,
+        title: cleanHtml(item.name || 'Episode'),
+        description: cleanHtml(item.description || ''),
+        podcastName: cleanHtml(item.podcastSeries?.name || 'Podcast'),
+        audioUrl: item.audioUrl,
+        imageUrl: item.imageUrl || item.podcastSeries?.imageUrl,
+        duration: Number(item.duration || 0) || undefined,
+        sourceUrl: item.websiteUrl || undefined,
+        publishedAt: item.datePublished ? new Date(Number(item.datePublished) * 1000).toISOString() : undefined,
+        explicit: Boolean(item.isExplicitContent),
+        language: 'fr',
+      }));
 
-    return res.status(200).json({ success: true, provider: 'taddy', episodes, page, nextPage: page + 1 });
+    return res.status(200).json({ success: true, provider: 'taddy', language: 'fr', episodes, page, nextPage: page + 1 });
   } catch (error: any) {
     console.error('[Taddy] error', error);
     return res.status(500).json({ error: error?.message || 'Unable to load podcasts.' });
