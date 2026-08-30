@@ -7,12 +7,13 @@ export default async function handler(req: any, res: any) {
 
   const userId = process.env.TADDY_USER_ID;
   const apiKey = process.env.TADDY_API_KEY;
-  if (!userId || !apiKey) {
-    return res.status(500).json({ error: 'TADDY_USER_ID or TADDY_API_KEY is not configured.' });
-  }
+  if (!userId || !apiKey) return res.status(500).json({ error: 'TADDY_USER_ID or TADDY_API_KEY is not configured.' });
 
   try {
-    const term = String(req.query?.q || 'français').trim() || 'français';
+    const rawTerm = String(req.query?.q || '').trim();
+    // Taddy's current search schema is most reliable with a search term + content type.
+    // French discovery is biased by the default query; educational classification happens later with Gemini.
+    const term = rawTerm || 'français facile';
     const page = Math.min(20, Math.max(1, Number(req.query?.page || 1)));
     const limit = Math.min(25, Math.max(1, Number(req.query?.limit || 18)));
 
@@ -23,15 +24,14 @@ export default async function handler(req: any, res: any) {
           page: $page,
           limitPerPage: $limit,
           filterForTypes: PODCASTEPISODE,
-          filterForLanguages: FRENCH,
           sortBy: POPULARITY,
-          matchBy: MOST_TERMS
+          matchBy: MOST_TERMS,
+          isSafeMode: true
         ) {
           searchId
           podcastEpisodes {
             uuid
             name
-            subtitle
             description(shouldStripHtmlTags: true)
             imageUrl
             audioUrl
@@ -39,16 +39,7 @@ export default async function handler(req: any, res: any) {
             datePublished
             websiteUrl
             isExplicitContent
-            podcastSeries {
-              uuid
-              name
-              imageUrl
-            }
-          }
-          responseDetails {
-            totalResults
-            totalPages
-            currentPage
+            podcastSeries { uuid name imageUrl }
           }
         }
       }
@@ -64,39 +55,31 @@ export default async function handler(req: any, res: any) {
       body: JSON.stringify({ query, variables: { term, page, limit } }),
     });
 
-    const payload = await response.json().catch(() => ({}));
+    const raw = await response.text();
+    let payload: any = {};
+    try { payload = JSON.parse(raw); } catch { payload = {}; }
+
     if (!response.ok || payload?.errors?.length) {
-      const detail = payload?.errors?.map((e: any) => e?.message).filter(Boolean).join(' | ') || `HTTP ${response.status}`;
-      console.error('[Taddy] search failed', detail);
+      const detail = payload?.errors?.map((e: any) => e?.message).filter(Boolean).join(' | ') || raw.slice(0, 500) || `HTTP ${response.status}`;
+      console.error('[Taddy] search failed', response.status, detail);
       return res.status(response.ok ? 502 : response.status).json({ error: 'Taddy podcast search failed.', detail });
     }
 
-    const search = payload?.data?.search || {};
-    const episodes = (search.podcastEpisodes || [])
-      .filter((item: any) => item?.uuid && item?.audioUrl)
-      .map((item: any) => ({
-        id: item.uuid,
-        title: cleanHtml(item.name || 'Episode'),
-        description: cleanHtml(item.subtitle || item.description || ''),
-        podcastName: cleanHtml(item.podcastSeries?.name || 'Podcast'),
-        audioUrl: item.audioUrl,
-        imageUrl: item.imageUrl || item.podcastSeries?.imageUrl,
-        duration: Number(item.duration || 0) || undefined,
-        sourceUrl: item.websiteUrl || undefined,
-        publishedAt: item.datePublished ? new Date(Number(item.datePublished) * 1000).toISOString() : undefined,
-        explicit: Boolean(item.isExplicitContent),
-      }));
+    const items = payload?.data?.search?.podcastEpisodes || [];
+    const episodes = items.filter((item: any) => item?.uuid && item?.audioUrl).map((item: any) => ({
+      id: item.uuid,
+      title: cleanHtml(item.name || 'Episode'),
+      description: cleanHtml(item.description || ''),
+      podcastName: cleanHtml(item.podcastSeries?.name || 'Podcast'),
+      audioUrl: item.audioUrl,
+      imageUrl: item.imageUrl || item.podcastSeries?.imageUrl,
+      duration: Number(item.duration || 0) || undefined,
+      sourceUrl: item.websiteUrl || undefined,
+      publishedAt: item.datePublished ? new Date(Number(item.datePublished) * 1000).toISOString() : undefined,
+      explicit: Boolean(item.isExplicitContent),
+    }));
 
-    const details = Array.isArray(search.responseDetails) ? search.responseDetails[0] : search.responseDetails;
-    return res.status(200).json({
-      success: true,
-      provider: 'taddy',
-      episodes,
-      page,
-      total: Number(details?.totalResults || episodes.length),
-      totalPages: Number(details?.totalPages || 1),
-      nextPage: page + 1,
-    });
+    return res.status(200).json({ success: true, provider: 'taddy', episodes, page, nextPage: page + 1 });
   } catch (error: any) {
     console.error('[Taddy] error', error);
     return res.status(500).json({ error: error?.message || 'Unable to load podcasts.' });
