@@ -9,7 +9,7 @@ import { StatsTab } from './components/StatsTab';
 import { SettingsTab } from './components/SettingsTab';
 import { FillBlankView } from './components/FillBlankView';
 import { ChallengeTab } from './components/ChallengeTab';
-import { PodcastsTab } from './components/PodcastsTab';
+import { PodcastsTabV2 } from './components/PodcastsTabV2';
 import { StudySessionView } from './components/StudySessionView';
 import { ExplorarMode } from './components/ExplorarMode';
 import { AddEditCardModal } from './components/AddEditCardModal';
@@ -61,7 +61,7 @@ export default function App() {
         {activeTab === 'decks' && <DecksTab decks={decks} cards={cards} onSelectDeckToStudy={(deck) => handleStartStudy(deck)} onOpenAddCardModal={(deckId) => handleOpenAddCardModal(deckId)} onCreateDeck={handleCreateDeck} onRefreshAll={refreshAllState} />}
         {activeTab === 'fill_blank' && <FillBlankView cards={cards} decks={decks} onOpenCardDetail={(card) => { setSessionCards([card]); setIsStudying(true); }} />}
         {activeTab === 'challenge' && <ChallengeTab cards={cards} />}
-        {activeTab === 'podcasts' && <PodcastsTab />}
+        {activeTab === 'podcasts' && <PodcastsTabV2 />}
         {activeTab === 'search' && <SearchTab cards={cards} onOpenCardDetail={(card) => { setSessionCards([card]); setIsStudying(true); }} onOpenExplorar={(card) => setExplorarCard(card)} onToggleFavorite={handleToggleFavoriteCard} />}
         {activeTab === 'stats' && <StatsTab stats={stats} cards={cards} />}
         {activeTab === 'settings' && <SettingsTab settings={settings} onUpdateSettings={handleUpdateSettings} onRefreshAll={refreshAllState} />}
