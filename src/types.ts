@@ -42,13 +42,28 @@ export interface PodcastEpisode {
   podcastName: string;
   audioUrl: string;
   imageUrl?: string;
+  level?: PodcastLevel;
+  category?: string;
+  duration?: number;
+  vocabulary?: string[];
+  objective?: string;
+  sourceUrl?: string;
+  publishedAt?: string;
+  explicit?: boolean;
+}
+export interface PodcastTranscriptSegment { start: number; end: number; text: string; }
+export interface PodcastStudyData {
+  episodeId: string;
+  transcript: string;
+  segments: PodcastTranscriptSegment[];
+  translationEn: string;
+  summaryEn: string;
   level: PodcastLevel;
   category: string;
-  duration?: number;
-  vocabulary: string[];
   objective: string;
-  sourceUrl?: string;
-  license?: string;
+  vocabulary: string[];
+  keyExpressions: Array<{ french: string; english: string }>;
+  generatedAt: string;
 }
 export interface PodcastProgress {
   podcastId: string;
