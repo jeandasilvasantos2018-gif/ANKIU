@@ -1,28 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Deck, FlashCard } from '../types';
-import {
-  Plus,
-  Play,
-  Layers,
-  Sparkles,
-  Download,
-  Upload,
-  FileText,
-  FileJson,
-  MoreVertical,
-  CheckCircle2,
-  AlertCircle,
-  X,
-  FileCode,
-  Share2,
-} from 'lucide-react';
-import {
-  exportDeckJSON,
-  exportDeckCSV,
-  exportAppDataJSON,
-  importDeckJSON,
-  importDeckCSV,
-} from '../lib/storage';
+import { Plus, Play, Sparkles, Download, Upload, FileText, FileJson, MoreVertical, CheckCircle2, AlertCircle, X, FileCode, Share2 } from 'lucide-react';
+import { exportDeckJSON, exportDeckCSV, exportAppDataJSON, importDeckJSON, importDeckCSV } from '../lib/storage';
 
 interface DecksTabProps {
   decks: Deck[];
@@ -33,501 +12,124 @@ interface DecksTabProps {
   onRefreshAll?: () => void;
 }
 
-export const DecksTab: React.FC<DecksTabProps> = ({
-  decks,
-  cards,
-  onSelectDeckToStudy,
-  onOpenAddCardModal,
-  onCreateDeck,
-  onRefreshAll,
-}) => {
-  // Modal states
+export const DecksTab: React.FC<DecksTabProps> = ({ decks, cards, onSelectDeckToStudy, onOpenAddCardModal, onCreateDeck, onRefreshAll }) => {
   const [showNewDeckModal, setShowNewDeckModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [activeMenuDeckId, setActiveMenuDeckId] = useState<string | null>(null);
-
-  // New deck form
   const [newDeckName, setNewDeckName] = useState('');
   const [newDeckLang, setNewDeckLang] = useState('fr');
   const [newDeckFlag, setNewDeckFlag] = useState('🇫🇷');
-
-  // Import form state
   const [importType, setImportType] = useState<'json' | 'csv'>('json');
   const [importCsvDeckName, setImportCsvDeckName] = useState('');
   const [importCsvLang, setImportCsvLang] = useState('fr');
   const [importCsvFlag, setImportCsvFlag] = useState('🇫🇷');
-  const [importStatus, setImportStatus] = useState<{
-    type: 'success' | 'error';
-    message: string;
-  } | null>(null);
-
+  const [importStatus, setImportStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Download helper
   const downloadFile = (content: string, filename: string, mimeType: string) => {
     const blob = new Blob([content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url);
   };
-
-  // Export single deck as JSON
-  const handleExportDeckJSON = (deck: Deck) => {
-    const jsonStr = exportDeckJSON(deck.id);
-    const cleanName = deck.name.toLowerCase().replace(/\s+/g, '-');
-    downloadFile(jsonStr, `deck-${cleanName}.json`, 'application/json');
-    setActiveMenuDeckId(null);
-  };
-
-  // Export single deck as CSV
-  const handleExportDeckCSV = (deck: Deck) => {
-    const csvStr = exportDeckCSV(deck.id);
-    const cleanName = deck.name.toLowerCase().replace(/\s+/g, '-');
-    downloadFile(csvStr, `deck-${cleanName}.csv`, 'text/csv;charset=utf-8;');
-    setActiveMenuDeckId(null);
-  };
-
-  // Export all decks & cards JSON
-  const handleExportAll = () => {
-    const jsonStr = exportAppDataJSON();
-    downloadFile(
-      jsonStr,
-      `backup-baralhos-${new Date().toISOString().split('T')[0]}.json`,
-      'application/json'
-    );
-  };
-
-  // Create new deck
-  const handleCreateDeckSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newDeckName.trim()) return;
-    onCreateDeck(newDeckName.trim(), newDeckLang, newDeckFlag);
-    setNewDeckName('');
-    setShowNewDeckModal(false);
-  };
-
-  // Handle File upload for Import
+  const handleExportDeckJSON = (deck: Deck) => { downloadFile(exportDeckJSON(deck.id), `deck-${deck.name.toLowerCase().replace(/\s+/g, '-')}.json`, 'application/json'); setActiveMenuDeckId(null); };
+  const handleExportDeckCSV = (deck: Deck) => { downloadFile(exportDeckCSV(deck.id), `deck-${deck.name.toLowerCase().replace(/\s+/g, '-')}.csv`, 'text/csv;charset=utf-8;'); setActiveMenuDeckId(null); };
+  const handleExportAll = () => downloadFile(exportAppDataJSON(), `backup-baralhos-${new Date().toISOString().split('T')[0]}.json`, 'application/json');
+  const handleCreateDeckSubmit = (e: React.FormEvent) => { e.preventDefault(); if (!newDeckName.trim()) return; onCreateDeck(newDeckName.trim(), newDeckLang, newDeckFlag); setNewDeckName(''); setShowNewDeckModal(false); };
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+    const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const content = evt.target?.result as string;
-      if (!content) return;
-
+      const content = evt.target?.result as string; if (!content) return;
       if (importType === 'json' || file.name.endsWith('.json')) {
         const res = importDeckJSON(content);
-        if (res.success) {
-          setImportStatus({
-            type: 'success',
-            message: `Importação realizada com sucesso! ${res.importedCardsCount} palavras importadas.`,
-          });
-          onRefreshAll?.();
-          setTimeout(() => {
-            setShowImportModal(false);
-            setImportStatus(null);
-          }, 1500);
-        } else {
-          setImportStatus({
-            type: 'error',
-            message: 'Erro ao importar arquivo JSON. Verifique a estrutura do arquivo.',
-          });
-        }
+        if (res.success) { setImportStatus({ type: 'success', message: `Importação realizada com sucesso! ${res.importedCardsCount} palavras importadas.` }); onRefreshAll?.(); setTimeout(() => { setShowImportModal(false); setImportStatus(null); }, 1500); }
+        else setImportStatus({ type: 'error', message: 'Erro ao importar arquivo JSON. Verifique a estrutura do arquivo.' });
       } else {
-        // CSV Import
         const deckTitle = importCsvDeckName.trim() || file.name.replace(/\.[^/.]+$/, '');
         const res = importDeckCSV(deckTitle, content, importCsvLang, importCsvFlag);
-        if (res.success && res.importedCardsCount > 0) {
-          setImportStatus({
-            type: 'success',
-            message: `Sucesso! Baralho "${res.deckName}" criado/atualizado com ${res.importedCardsCount} palavras.`,
-          });
-          onRefreshAll?.();
-          setTimeout(() => {
-            setShowImportModal(false);
-            setImportStatus(null);
-          }, 1500);
-        } else {
-          setImportStatus({
-            type: 'error',
-            message: 'Erro ao ler arquivo CSV. Certifique-se de que possui ao menos uma coluna com palavras.',
-          });
-        }
+        if (res.success && res.importedCardsCount > 0) { setImportStatus({ type: 'success', message: `Sucesso! Baralho "${res.deckName}" criado/atualizado com ${res.importedCardsCount} palavras.` }); onRefreshAll?.(); setTimeout(() => { setShowImportModal(false); setImportStatus(null); }, 1500); }
+        else setImportStatus({ type: 'error', message: 'Erro ao ler arquivo CSV. Certifique-se de que possui ao menos uma coluna com palavras.' });
       }
     };
-
-    reader.readAsText(file);
-    if (e.target) e.target.value = '';
+    reader.readAsText(file); if (e.target) e.target.value = '';
   };
 
+  const palette = [
+    { bg: 'bg-[#fff0f3] dark:bg-[#493039]', border: 'border-[#ffd3dc] dark:border-[#693c49]', accent: 'text-[#e25d78]' },
+    { bg: 'bg-[#f3efff] dark:bg-[#403650]', border: 'border-[#ddd3ff] dark:border-[#5d4c73]', accent: 'text-[#8874c9]' },
+    { bg: 'bg-[#fff5e8] dark:bg-[#42352f]', border: 'border-[#ffe0b8] dark:border-[#654d40]', accent: 'text-[#d68a55]' },
+    { bg: 'bg-[#eef9f3] dark:bg-[#2f4138]', border: 'border-[#ccebdc] dark:border-[#436052]', accent: 'text-[#58a47f]' },
+  ];
+
   return (
-    <div className="w-full max-w-md mx-auto px-4 pt-8 pb-28 flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-black text-zinc-900 dark:text-zinc-50 tracking-tight">
-            Decks
-          </h1>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-            Gerencie, exporte e importe seus baralhos
-          </p>
+    <div className="w-full max-w-md mx-auto px-4 pt-7 pb-32 flex flex-col gap-5">
+      <header className="rounded-[30px] ankiu-surface px-5 py-5 relative overflow-hidden">
+        <span className="absolute right-5 top-4 text-[#f09aaf] ankiu-sparkle">✦</span>
+        <div className="text-[11px] font-black uppercase tracking-[.14em] text-[#aa8490] flex items-center gap-2"><Sparkles className="w-3.5 h-3.5" /> Sua coleção</div>
+        <div className="mt-1 flex items-end justify-between gap-3">
+          <div><h1 className="text-3xl font-black text-[#3d2d34] dark:text-[#fff7f3] tracking-[-.04em]">Decks</h1><p className="text-xs text-[#957b84] dark:text-[#c9b3bb] mt-1">Organize palavras por idioma ou objetivo.</p></div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => { setImportStatus(null); setShowImportModal(true); }} className="w-10 h-10 rounded-2xl bg-[#f3efff] dark:bg-[#403650] border border-[#ddd3ff] dark:border-[#5d4c73] text-[#8874c9] flex items-center justify-center" title="Importar"><Upload className="w-4 h-4" /></button>
+            <button type="button" onClick={() => setShowNewDeckModal(true)} className="h-10 px-3 rounded-2xl bg-gradient-to-r from-[#f36a85] to-[#ff9b87] text-white text-xs font-black flex items-center gap-1.5 shadow-[0_8px_18px_rgba(236,91,119,.18)]"><Plus className="w-4 h-4" /> Novo</button>
+          </div>
         </div>
+      </header>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setImportStatus(null);
-              setShowImportModal(true);
-            }}
-            className="p-2.5 rounded-2xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-            title="Importar Baralho ou Cartões (JSON / CSV)"
-          >
-            <Upload className="w-4 h-4 text-indigo-500" />
-            <span className="hidden sm:inline">Importar</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowNewDeckModal(true)}
-            className="p-2.5 rounded-2xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs font-bold hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Novo Deck</span>
-          </button>
-        </div>
+      <div className="flex items-center justify-between p-4 rounded-[24px] bg-gradient-to-r from-[#fff0f3] to-[#f3efff] dark:from-[#493039] dark:to-[#403650] border border-[#ead1df] dark:border-[#5e4354] text-xs shadow-sm">
+        <div className="flex items-center gap-2"><Share2 className="w-4 h-4 text-[#e25d78]" /><span className="font-black text-[#5b414b] dark:text-[#fff0f5]">Backup dos seus decks</span></div>
+        <button type="button" onClick={handleExportAll} className="px-3 py-2 rounded-2xl bg-white/75 dark:bg-[#34272d] text-[#df5e78] font-black text-[10px] flex items-center gap-1"><Download className="w-3.5 h-3.5" /> JSON</button>
       </div>
 
-      {/* Top Bar Export Action */}
-      <div className="flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200/60 dark:border-blue-900/60 text-xs">
-        <div className="flex items-center gap-2">
-          <Share2 className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-          <span className="font-semibold text-zinc-800 dark:text-zinc-200">
-            Exportar Todos os Baralhos (Backup)
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={handleExportAll}
-          className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px] transition-colors flex items-center gap-1 cursor-pointer"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span>Baixar Backup JSON</span>
-        </button>
-      </div>
-
-      {/* Decks List */}
       <div className="flex flex-col gap-3">
-        {decks.map((deck) => {
+        {decks.map((deck, index) => {
           const deckCards = cards.filter((c) => c.deckId === deck.id);
-          const dueCards = deckCards.filter(
-            (c) => c.state === 'Novo' || c.state === 'Revisão' || c.state === 'Aprendendo'
-          ).length;
+          const dueCards = deckCards.filter((c) => c.state === 'Novo' || c.state === 'Revisão' || c.state === 'Aprendendo').length;
           const isMenuOpen = activeMenuDeckId === deck.id;
-
+          const tone = palette[index % palette.length];
           return (
-            <div
-              key={deck.id}
-              className="bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 rounded-3xl p-5 shadow-xs flex flex-col gap-3 relative group hover:border-blue-500/50 transition-all"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="text-3xl p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-100 dark:border-zinc-800">
-                    {deck.flag}
-                  </div>
-
-                  <div className="flex flex-col gap-0.5">
-                    <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
-                      {deck.name}
-                    </h3>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {deckCards.length} palavras • {dueCards} para revisar
-                    </p>
-                  </div>
+            <div key={deck.id} className={`rounded-[30px] border p-5 shadow-[0_12px_34px_rgba(116,65,80,.08)] flex flex-col gap-3 relative ${tone.bg} ${tone.border}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="text-3xl w-14 h-14 rounded-[22px] bg-white/65 dark:bg-black/10 border border-white/50 dark:border-white/5 flex items-center justify-center shrink-0">{deck.flag}</div>
+                  <div className="min-w-0"><h3 className="text-lg font-black text-[#4b373f] dark:text-[#fff7f3] truncate">{deck.name}</h3><p className="text-xs text-[#957b84] dark:text-[#c8b1b9]">{deckCards.length} palavras • {dueCards} para revisar</p></div>
                 </div>
-
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => onOpenAddCardModal(deck.id)}
-                    className="p-2 rounded-xl text-zinc-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/50 transition-colors cursor-pointer"
-                    title="Adicionar palavra neste deck"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-
-                  {/* Dropdown Menu Toggle */}
-                  <button
-                    type="button"
-                    onClick={() => setActiveMenuDeckId(isMenuOpen ? null : deck.id)}
-                    className="p-2 rounded-xl text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-                    title="Opções de Exportação"
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onSelectDeckToStudy(deck)}
-                    className="px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm shadow-blue-500/20 active:scale-95 cursor-pointer ml-1"
-                  >
-                    <Play className="w-3.5 h-3.5 fill-white" />
-                    <span>Estudar</span>
-                  </button>
+                <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => onOpenAddCardModal(deck.id)} className="w-9 h-9 rounded-2xl bg-white/60 dark:bg-black/10 text-[#9d7d87] flex items-center justify-center"><Plus className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => setActiveMenuDeckId(isMenuOpen ? null : deck.id)} className="w-9 h-9 rounded-2xl bg-white/60 dark:bg-black/10 text-[#9d7d87] flex items-center justify-center"><MoreVertical className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => onSelectDeckToStudy(deck)} className="h-9 px-3 rounded-2xl bg-[#fffdfb] dark:bg-[#34272d] text-[#e05d78] dark:text-[#ff9caf] font-black text-xs flex items-center gap-1.5 shadow-sm"><Play className="w-3.5 h-3.5 fill-current" /> Estudar</button>
                 </div>
               </div>
-
-              {/* Inline Action Drawer for Exporting */}
-              {isMenuOpen && (
-                <div className="pt-3 mt-1 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-2 animate-fadeIn">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
-                    Exportar Baralho:
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleExportDeckJSON(deck)}
-                      className="px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <FileJson className="w-3.5 h-3.5 text-blue-500" />
-                      <span>JSON</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleExportDeckCSV(deck)}
-                      className="px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <FileText className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>CSV / Anki</span>
-                    </button>
-                  </div>
-                </div>
-              )}
+              {isMenuOpen && <div className="pt-3 border-t border-black/5 dark:border-white/5 flex items-center justify-between gap-2"><span className="text-[10px] font-black uppercase tracking-wider text-[#a4868f]">Exportar</span><div className="flex gap-2"><button type="button" onClick={() => handleExportDeckJSON(deck)} className="px-3 py-1.5 rounded-xl bg-white/70 dark:bg-black/10 text-xs font-black flex items-center gap-1.5"><FileJson className="w-3.5 h-3.5 text-[#e25d78]" /> JSON</button><button type="button" onClick={() => handleExportDeckCSV(deck)} className="px-3 py-1.5 rounded-xl bg-white/70 dark:bg-black/10 text-xs font-black flex items-center gap-1.5"><FileText className="w-3.5 h-3.5 text-[#58a47f]" /> CSV</button></div></div>}
             </div>
           );
         })}
       </div>
 
-      {/* Quick AI Deck Card Add Button */}
-      <button
-        type="button"
-        onClick={() => onOpenAddCardModal()}
-        className="p-4 rounded-3xl border border-dashed border-zinc-300 dark:border-zinc-700 hover:border-blue-500/80 bg-zinc-50/50 dark:bg-zinc-900/50 text-zinc-600 dark:text-zinc-300 font-semibold text-xs flex items-center justify-center gap-2 transition-all hover:bg-blue-50/30 dark:hover:bg-blue-950/20 cursor-pointer"
-      >
-        <Sparkles className="w-4 h-4 text-blue-500" />
-        <span>Adicionar nova palavra com IA Assistente</span>
-      </button>
+      <button type="button" onClick={() => onOpenAddCardModal()} className="p-4 rounded-[26px] border border-dashed border-[#e8c8c4] dark:border-[#5b434c] bg-[#fffaf7]/60 dark:bg-[#30242a]/60 text-[#9c7b85] dark:text-[#d2b7c0] font-black text-xs flex items-center justify-center gap-2 transition-all hover:-translate-y-0.5"><Sparkles className="w-4 h-4 text-[#e46c85]" /> Adicionar palavra com IA</button>
 
-      {/* MODAL: IMPORT DECK */}
-      {showImportModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl flex flex-col gap-4 relative animate-scaleUp">
-            <button
-              type="button"
-              onClick={() => setShowImportModal(false)}
-              className="absolute top-5 right-5 p-1.5 rounded-xl text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div>
-              <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-50 flex items-center gap-2">
-                <Upload className="w-5 h-5 text-indigo-500" />
-                <span>Importar Baralho</span>
-              </h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
-                Carregue um arquivo JSON de backup ou uma planilha CSV (estilo Anki).
-              </p>
-            </div>
-
-            {/* Import Format Selector Tabs */}
-            <div className="grid grid-cols-2 gap-2 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-2xl">
-              <button
-                type="button"
-                onClick={() => setImportType('json')}
-                className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                  importType === 'json'
-                    ? 'bg-white dark:bg-zinc-900 text-blue-600 dark:text-blue-400 shadow-xs'
-                    : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
-                }`}
-              >
-                <FileJson className="w-4 h-4" />
-                <span>Arquivo JSON</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setImportType('csv')}
-                className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                  importType === 'csv'
-                    ? 'bg-white dark:bg-zinc-900 text-emerald-600 dark:text-emerald-400 shadow-xs'
-                    : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200'
-                }`}
-              >
-                <FileText className="w-4 h-4" />
-                <span>Planilha CSV / Anki</span>
-              </button>
-            </div>
-
-            {/* CSV Config extra fields */}
-            {importType === 'csv' && (
-              <div className="flex flex-col gap-2.5 pt-1">
-                <div>
-                  <label className="text-xs font-semibold text-zinc-500">
-                    Nome do Baralho de Destino
-                  </label>
-                  <input
-                    type="text"
-                    value={importCsvDeckName}
-                    onChange={(e) => setImportCsvDeckName(e.target.value)}
-                    placeholder="Ex: Vocabulário Francês Avançado"
-                    className="w-full mt-1 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:border-blue-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-500">Emoji</label>
-                    <input
-                      type="text"
-                      value={importCsvFlag}
-                      onChange={(e) => setImportCsvFlag(e.target.value)}
-                      className="w-full mt-1 p-2.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:border-blue-500 text-center"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-zinc-500">Idioma</label>
-                    <select
-                      value={importCsvLang}
-                      onChange={(e) => setImportCsvLang(e.target.value)}
-                      className="w-full mt-1 p-2.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:border-blue-500"
-                    >
-                      <option value="fr">Francês (fr)</option>
-                      <option value="en">Inglês (en)</option>
-                      <option value="es">Espanhol (es)</option>
-                      <option value="de">Alemão (de)</option>
-                      <option value="it">Italiano (it)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Upload Area */}
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="p-6 border-2 border-dashed border-zinc-300 dark:border-zinc-700 hover:border-blue-500 dark:hover:border-blue-400 rounded-2xl bg-zinc-50/50 dark:bg-zinc-800/40 text-center flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors"
-            >
-              <Upload className="w-8 h-8 text-blue-500" />
-              <div className="text-xs font-bold text-zinc-800 dark:text-zinc-200">
-                Clique para selecionar o arquivo ({importType.toUpperCase()})
-              </div>
-              <div className="text-[10px] text-zinc-400">
-                {importType === 'json'
-                  ? 'Formatos aceitos: Baralho .json ou Backup .json'
-                  : 'Formatos aceitos: Planilha .csv ou .txt separada por vírgula ou tabulação'}
-              </div>
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={importType === 'json' ? '.json' : '.csv,.txt'}
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-
-            {/* Status Feedback */}
-            {importStatus && (
-              <div
-                className={`p-3 rounded-2xl text-xs font-semibold flex items-center gap-2 ${
-                  importStatus.type === 'success'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800'
-                    : 'bg-rose-50 dark:bg-rose-950/80 text-rose-800 dark:text-rose-200 border border-rose-200 dark:border-rose-800'
-                }`}
-              >
-                {importStatus.type === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                )}
-                <span>{importStatus.message}</span>
-              </div>
-            )}
+      {showNewDeckModal && (
+        <div className="fixed inset-0 z-50 bg-[#3a2830]/45 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm rounded-[32px] bg-[#fffdfb] dark:bg-[#382b31] border border-[#efd7d1] dark:border-[#5b444e] p-5 shadow-2xl">
+            <div className="flex items-center justify-between mb-4"><div><div className="text-[10px] font-black uppercase tracking-[.14em] text-[#aa8490]">Novo começo</div><h2 className="text-xl font-black text-[#49363f] dark:text-[#fff7f3]">Criar Deck</h2></div><button onClick={() => setShowNewDeckModal(false)} className="w-9 h-9 rounded-2xl bg-[#fff0f3] dark:bg-[#493039] flex items-center justify-center"><X className="w-4 h-4" /></button></div>
+            <form onSubmit={handleCreateDeckSubmit} className="flex flex-col gap-3">
+              <input value={newDeckName} onChange={(e) => setNewDeckName(e.target.value)} placeholder="Nome do deck" className="w-full px-4 py-3 border rounded-2xl" autoFocus />
+              <div className="grid grid-cols-2 gap-2"><select value={newDeckLang} onChange={(e) => setNewDeckLang(e.target.value)} className="px-3 py-3 border rounded-2xl"><option value="fr">Francês</option><option value="en">Inglês</option><option value="es">Espanhol</option><option value="de">Alemão</option><option value="it">Italiano</option><option value="pt">Português</option><option value="ja">Japonês</option><option value="zh">Chinês</option></select><input value={newDeckFlag} onChange={(e) => setNewDeckFlag(e.target.value)} placeholder="🇫🇷" className="px-3 py-3 border rounded-2xl text-center" /></div>
+              <button type="submit" className="mt-1 py-3.5 rounded-[22px] bg-gradient-to-r from-[#f36a85] to-[#ff9b87] text-white font-black">Criar Deck</button>
+            </form>
           </div>
         </div>
       )}
 
-      {/* MODAL: NEW DECK */}
-      {showNewDeckModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl flex flex-col gap-4">
-            <h3 className="text-xl font-black text-zinc-900 dark:text-zinc-50">
-              Criar Novo Deck
-            </h3>
-
-            <form onSubmit={handleCreateDeckSubmit} className="flex flex-col gap-3">
-              <div>
-                <label className="text-xs font-semibold text-zinc-500">Nome do Deck</label>
-                <input
-                  type="text"
-                  value={newDeckName}
-                  onChange={(e) => setNewDeckName(e.target.value)}
-                  placeholder="Ex: Italiano para Viagem"
-                  className="w-full mt-1 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:border-blue-500"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs font-semibold text-zinc-500">Bandeira Emoji</label>
-                  <input
-                    type="text"
-                    value={newDeckFlag}
-                    onChange={(e) => setNewDeckFlag(e.target.value)}
-                    className="w-full mt-1 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:border-blue-500 text-center"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-zinc-500">Código Idioma</label>
-                  <select
-                    value={newDeckLang}
-                    onChange={(e) => setNewDeckLang(e.target.value)}
-                    className="w-full mt-1 p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-sm focus:outline-none focus:border-blue-500"
-                  >
-                    <option value="en">Inglês (en)</option>
-                    <option value="fr">Francês (fr)</option>
-                    <option value="zh">Mandarim (zh)</option>
-                    <option value="ja">Japonês (ja)</option>
-                    <option value="es">Espanhol (es)</option>
-                    <option value="de">Alemão (de)</option>
-                    <option value="it">Italiano (it)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex gap-2 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowNewDeckModal(false)}
-                  className="flex-1 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-700 text-xs font-bold text-zinc-600 dark:text-zinc-400 cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-3 rounded-2xl bg-blue-600 text-white font-bold text-xs cursor-pointer"
-                >
-                  Criar Deck
-                </button>
-              </div>
-            </form>
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 bg-[#3a2830]/45 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-sm max-h-[88vh] overflow-y-auto rounded-[32px] bg-[#fffdfb] dark:bg-[#382b31] border border-[#efd7d1] dark:border-[#5b444e] p-5 shadow-2xl">
+            <div className="flex items-center justify-between mb-4"><div><div className="text-[10px] font-black uppercase tracking-[.14em] text-[#aa8490]">Trazer conteúdo</div><h2 className="text-xl font-black text-[#49363f] dark:text-[#fff7f3]">Importar</h2></div><button onClick={() => setShowImportModal(false)} className="w-9 h-9 rounded-2xl bg-[#fff0f3] dark:bg-[#493039] flex items-center justify-center"><X className="w-4 h-4" /></button></div>
+            <div className="grid grid-cols-2 gap-2 mb-4"><button onClick={() => setImportType('json')} className={`p-3 rounded-2xl border text-xs font-black ${importType === 'json' ? 'bg-[#fff0f3] text-[#e25d78] border-[#ffcbd6]' : 'border-[#efd7d1]'}`}><FileJson className="w-4 h-4 mx-auto mb-1" /> JSON</button><button onClick={() => setImportType('csv')} className={`p-3 rounded-2xl border text-xs font-black ${importType === 'csv' ? 'bg-[#eef9f3] text-[#58a47f] border-[#ccebdc]' : 'border-[#efd7d1]'}`}><FileCode className="w-4 h-4 mx-auto mb-1" /> CSV</button></div>
+            {importType === 'csv' && <div className="grid gap-2 mb-3"><input value={importCsvDeckName} onChange={(e) => setImportCsvDeckName(e.target.value)} placeholder="Nome do deck" className="px-3 py-3 border rounded-2xl" /><div className="grid grid-cols-2 gap-2"><select value={importCsvLang} onChange={(e) => setImportCsvLang(e.target.value)} className="px-3 py-3 border rounded-2xl"><option value="fr">Francês</option><option value="en">Inglês</option><option value="es">Espanhol</option><option value="de">Alemão</option><option value="it">Italiano</option><option value="pt">Português</option><option value="ja">Japonês</option><option value="zh">Chinês</option></select><input value={importCsvFlag} onChange={(e) => setImportCsvFlag(e.target.value)} className="px-3 py-3 border rounded-2xl text-center" /></div></div>}
+            <input ref={fileInputRef} type="file" accept={importType === 'json' ? '.json' : '.csv,.txt'} onChange={handleFileUpload} className="hidden" />
+            <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full p-5 rounded-[24px] border border-dashed border-[#dfbfc0] bg-[#fff8f3] dark:bg-[#30242a] text-[#8e707a] font-black text-xs flex flex-col items-center gap-2"><Upload className="w-6 h-6 text-[#e46c85]" /> Selecionar arquivo</button>
+            {importStatus && <div className={`mt-3 p-3 rounded-2xl text-xs font-bold flex items-start gap-2 ${importStatus.type === 'success' ? 'bg-[#eef9f3] text-[#4f9675]' : 'bg-[#fff0f0] text-[#c45b64]'}`}>{importStatus.type === 'success' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}{importStatus.message}</div>}
           </div>
         </div>
       )}
