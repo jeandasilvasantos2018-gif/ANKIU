@@ -19,25 +19,26 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab }) => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-black/90 backdrop-blur-md border-t border-zinc-200/80 dark:border-zinc-800/80 py-2 px-2 transition-colors">
-      <div className="max-w-md mx-auto flex items-center justify-around">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 px-3 pb-[max(.65rem,env(safe-area-inset-bottom))] pt-2 pointer-events-none">
+      <div className="max-w-md mx-auto pointer-events-auto rounded-[28px] border border-rose-200/70 dark:border-rose-900/30 bg-[#fffaf7]/92 dark:bg-[#30242a]/94 backdrop-blur-xl shadow-[0_16px_45px_rgba(116,65,80,.18)] px-2 py-2 flex items-center justify-around">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => onSelectTab(tab.id)}
-              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all duration-200 ${
+              aria-label={tab.label}
+              className={`relative min-w-[42px] flex flex-col items-center gap-0.5 px-1.5 py-1.5 rounded-2xl transition-all duration-200 ${
                 isActive
-                  ? 'text-blue-600 dark:text-blue-400 font-semibold scale-105'
-                  : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
+                  ? 'text-[#e65374] dark:text-[#ff9db0] font-bold -translate-y-1'
+                  : 'text-[#9a818a] dark:text-[#c9b3bb] hover:text-[#5c414c] dark:hover:text-white'
               }`}
             >
-              {tab.icon}
-              <span className="text-[10px] tracking-tight">{tab.label}</span>
-              {isActive && (
-                <div className="w-1 h-1 rounded-full bg-blue-600 dark:bg-blue-400 mt-0.5" />
-              )}
+              <span className={`w-9 h-9 rounded-2xl flex items-center justify-center transition-all ${isActive ? 'bg-gradient-to-br from-[#ffd4dc] to-[#ffe2cd] dark:from-[#633746] dark:to-[#553b38] shadow-[0_7px_16px_rgba(244,95,122,.18)]' : ''}`}>
+                {tab.icon}
+              </span>
+              <span className="text-[9px] tracking-tight">{tab.label}</span>
+              {isActive && <span className="absolute -top-1 right-1.5 text-[#ff9b85] text-[10px] ankiu-sparkle">✦</span>}
             </button>
           );
         })}
@@ -45,4 +46,3 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, onSelectTab }) => {
     </nav>
   );
 };
-
